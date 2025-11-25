@@ -122,11 +122,13 @@ class Model {
         
         switch (idx) {
             case 0:
-                base_shape = sphere;
+                base_shape = cube;
                 initial_transform = mat4Translate(initial_transform, [0.0, 0.0, 0.0]);
                 this.figure[idx] = this.create_node(idx, initial_transform, 
                     () => {
                         let segment_mat = mat4Scale(this.model_transformation_matrix, [1.0, 1.0, 1.0]);
+                        segment_mat = mat4RotateY(segment_mat, this.dynamic_angle);
+                        segment_mat = mat4Translate(segment_mat, [0.0, Math.sin(this.dynamic_angle), 0.0]);
                         gl.uniformMatrix4fv(uMTM, false, segment_mat);
                     }, 
                     null, base_shape);

@@ -34,13 +34,14 @@ let uKa, uKd, uKs, uAlpha, uViewPos, uAttOn;
 let uTex, uBumpStrength, uBumpOn, uTexOn;
 let uLightPos1, uLightPos2, uLightColor1, uLightColor2;
 
-const material_uniforms = {
+const obj_uniforms = {
     uKa, 
     uKd, 
     uKs, 
     uAlpha,
     uBumpOn,
-    uTexOn
+    uTexOn,
+    uMTM
 };
 
 function init_shader_program() {
@@ -53,12 +54,12 @@ function init_shader_program() {
     timeLoc = gl.getUniformLocation(program, "uTime");
     uMVM = gl.getUniformLocation(program, "uModelViewMatrix");
     uPM = gl.getUniformLocation(program, "uProjectionMatrix");
-    uMTM = gl.getUniformLocation(program, "uModelTransformationMatrix");
+    obj_uniforms.uMTM = gl.getUniformLocation(program, "uModelTransformationMatrix");
 
-    material_uniforms.uKa = gl.getUniformLocation(program, "uKa");
-    material_uniforms.uKd = gl.getUniformLocation(program, "uKd");
-    material_uniforms.uKs = gl.getUniformLocation(program, "uKs");
-    material_uniforms.uAlpha = gl.getUniformLocation(program, "uAlpha");
+    obj_uniforms.uKa = gl.getUniformLocation(program, "uKa");
+    obj_uniforms.uKd = gl.getUniformLocation(program, "uKd");
+    obj_uniforms.uKs = gl.getUniformLocation(program, "uKs");
+    obj_uniforms.uAlpha = gl.getUniformLocation(program, "uAlpha");
 
     uLightPos1 = gl.getUniformLocation(program, "uLightPos1");
     uLightPos2 = gl.getUniformLocation(program, "uLightPos2");
@@ -71,7 +72,7 @@ function init_shader_program() {
     uTex = gl.getUniformLocation(program, "uTex");
     uTexOn = gl.getUniformLocation(program, "uTexOn");
     uBumpStrength = gl.getUniformLocation(program, "uBumpStrength");
-    material_uniforms.uBumpOn = gl.getUniformLocation(program, "uBumpOn");
+    obj_uniforms.uBumpOn = gl.getUniformLocation(program, "uBumpOn");
 
     } catch (e) { 
         console.error(e); 
@@ -135,30 +136,26 @@ const cube = makeShape(gl, program, cube_data, null, metal_orange_material);
 const sphere = makeShape(gl, program, () => sphere_data(30, 30, 1), null, metal_red_material);
 
 // Hierarchical model setup
-let figure = [];
-let num_segments = 1;
-let model = new Model(num_segments,  mat4Identity(), figure);
+let body_node = create_model_node(
+    mat4Identity(),
+    null,
+    cube,
+    obj_uniforms,
+    {}
+);
 
-// model.add_children(0, 1);
-// model.add_children(0, 2);
-// model.add_children(0, 3);
-// model.add_children(0, 4);
-// model.add_children(0, 5);
-// model.add_children(0, 6);
-// model.add_children(6, 7);
-// model.add_children(6, 8);
-// model.add_children(6, 9);
-// model.add_children(6, 10);
-// model.add_children(6, 11);
-// model.add_children(11, 12);
-// model.add_children(11, 13);
-// model.add_children(11, 14);
-// model.add_children(11, 15);
-// model.add_children(11, 16);
-// model.add_children(0, 17);
-// model.add_children(0, 18);
+let head_node = create_model_node(
+    mat4Translate(mat4Identity(), [0.0, 1.5, 0.0]),
+    (mtm) => {
+        let angle = Date.now() * 0.001 * spinrate;
+        return multiplyMat4(mtm, mat4RotateY(mat4Identity(), angle));
+    },
+    cube,
+    obj_uniforms,
+    {}
+);
 
-
+add_children(body_node, head_node);
 
 // lighting setup
 let light_world_position1 = [0, 3, -5];
@@ -169,50 +166,10 @@ let light_color2 = [0.7, 0.7, 0.7];
 
 let view_direction = [0, 0, 0];
 
-// interactive ui
+// interactive ui variables
 let spinrate = 0.1;
-
 let bumpStrength = 100.0;
-
-// const bs_slider = document.getElementById("bumpStrengthSlider");
-// const bs_val = document.getElementById("bumpStrengthValue");
-
-// bs_slider.addEventListener("input", () => {
-//   bumpStrength = parseFloat(bs_slider.value);
-//   bs_val.textContent = bumpStrength.toFixed(2);
-// });
-
 let oscillationrate = 1.0;
-
-// const oscillationrate_silder = document.getElementById("oscillationSlider");
-// const oscillationrate_value = document.getElementById("oscillationValue");
-
-// oscillationrate_silder.addEventListener("input", () => {
-//   oscillationrate = parseFloat(oscillationrate_silder.value);
-//   oscillationrate_value.textContent = oscillationrate.toFixed(2);
-// });
-
-// const lightintensity_slider = document.getElementById("lightIntensitySlider");
-// const lightintensity_value = document.getElementById("lightIntensityValue");
-
-// let ambient_coeff = 0.5;
-
-// lightintensity_slider.addEventListener("input", () => {
-//   ambient_coeff = parseFloat(lightintensity_slider.value);
-//   lightintensity_value.textContent = ambient_coeff.toFixed(2);
-// });
-
-// let attButton = false;
-
-// document.getElementById("AttOnButton").addEventListener("click", () => {
-//     attButton = !attButton;
-// });
-
-// let animationButton = false;
-
-// document.getElementById("AnimationButton").addEventListener("click", () => {
-//     animationButton = !animationButton;
-// });
 
 let temperatureLights = false;
 
@@ -272,7 +229,7 @@ function render() {
     // set the uniforms
     gl.uniformMatrix4fv(uPM, false, proj);
     gl.uniformMatrix4fv(uMVM, false, model_view_matrix);
-    gl.uniformMatrix4fv(uMTM, false, model_transformation_matrix);
+    // gl.uniformMatrix4fv(uMTM, false, model_transformation_matrix);
 
     gl.uniform3fv(uLightPos1, light_world_position1);
     gl.uniform3fv(uLightPos2, light_world_position2);
@@ -280,20 +237,14 @@ function render() {
     gl.uniform3fv(uLightColor2, light_color2);
 
     gl.uniform3fv(uViewPos, view_direction);
-    // gl.uniform1f(uAttOn, attButton);
-    // gl.uniform1f(material_uniforms.uKa, ambient_coeff);
     gl.uniform1f(uBumpStrength, bumpStrength);
 
     //set time in seconds
     gl.uniform1f(timeLoc, elapsed_time);
 
     // draw the model
-    model.set_mtm(model_transformation_matrix);
-    
-    model.update_dynamic_params(elapsed_time, delta_time, spinrate, oscillationrate);
-    model.update_node_transform(0);
-    
-    model.walk(0);
+    let mtm_stack = [];
+    walk(body_node, mtm_stack, model_transformation_matrix);
 
     requestAnimationFrame(render);
 }

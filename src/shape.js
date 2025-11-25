@@ -80,7 +80,7 @@ class Shape {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.video);
     }
 
-    draw(uniforms) {
+    draw(uniforms, mtm) {
         const gl = this.gl;
 
         
@@ -94,7 +94,7 @@ class Shape {
             gl.uniform1i(gl.getUniformLocation(this.program, "uTex"), 0);
         }
         
-
+        gl.uniformMatrix4fv(uniforms.uMTM, false, mtm);
         gl.uniform1f(uniforms.uKa, this.material.Ka);
         gl.uniform1f(uniforms.uKd, this.material.Kd);
         gl.uniform1f(uniforms.uKs, this.material.Ks);

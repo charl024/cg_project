@@ -27,6 +27,10 @@ function mat4Identity() {
     return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 }
 
+function mat4Copy(matrix) {
+    return new Float32Array(matrix);
+}
+
 // Matrix translation
 function mat4Translate(matrix, translation) {
     const result = new Float32Array(matrix);
