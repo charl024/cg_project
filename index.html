@@ -148,6 +148,7 @@ uniform mat4 uModelTransformationMatrix;
 
 uniform vec3 uLightPos1;
 uniform vec3 uLightPos2;
+uniform vec3 uMaterialColor;
 
 out vec3 vColor;
 out vec3 vPosition;
@@ -180,7 +181,7 @@ void main() {
   //vLightPos1 = light1_view;
   //vLightPos2 = light2_view;
 
-  vColor = aColor;
+  vColor = aColor * uMaterialColor;
   vPosition = position.xyz;
   vNormal = normalize(normal_matrix * aNormal);
 
@@ -283,6 +284,7 @@ void main() {
   <script src="src/primitives.js"></script>
   <script src="src/transformations.js"></script>
   <script src="src/model_node.js"></script>
+  <script src="src/scene.js"></script>
   <script src="src/main.js"></script>
 </body>
 

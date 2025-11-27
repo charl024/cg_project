@@ -1,3 +1,4 @@
+// material: Ka, Kd, Ks, alpha, color, bumpOn
 
 const ground_material = {   
     Kd: 0.4,

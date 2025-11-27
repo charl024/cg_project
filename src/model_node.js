@@ -1,4 +1,4 @@
-class Model_Node {
+class ModelNode {
     constructor() {
         this.transform = mat4Identity();
         this.itransform = mat4Identity();
@@ -6,8 +6,9 @@ class Model_Node {
         this.children = null;
 
         this.shape = null;
-        this.material_uniforms = null;
-        this.dynamic_params = {};
+        this.uniforms = null;
+        this.material = null;
+        this.texture = null;
 
     }
 }
@@ -16,16 +17,38 @@ class Model_Node {
 // wtransform_cb: function to compute world transformation, this is where you set dynamic transformations (and scaling)
 // children: list of child nodes
 // shape: shape to draw
-// material_uniforms: material properties for drawing
-function create_model_node(transform, wtransform_cb, shape, material_uniforms, dynamic_params) {
-    let node = new Model_Node();
-    node.transform = transform || mat4Identity();
-    node.itransform = mat4Copy(transform || mat4Identity());
+// uniforms: material/transform uniform locations
+// material: material properties for drawing
+// texture: texture info bound to this node (created with create_texture)
+function create_model_node(initial_location, initial_angle, wtransform_cb, shape, uniforms, material, texture) {
+    let node = new ModelNode();
+
+    let initial_transform = mat4Identity();
+
+    if (initial_location != null) {
+        initial_transform = mat4Translate(initial_transform, [initial_location.x, initial_location.y, initial_location.z]);
+    }
+
+    if (initial_angle != null) {
+        const x_angle = initial_angle.x || 0.0;
+        const y_angle = initial_angle.y || 0.0;
+        const z_angle = initial_angle.z || 0.0;
+
+        initial_transform = mat4RotateX(initial_transform, x_angle);
+        initial_transform = mat4RotateY(initial_transform, y_angle);
+        initial_transform = mat4RotateZ(initial_transform, z_angle);
+    }
+
+    
+    
+    node.transform = initial_transform;
+    node.itransform = mat4Copy(node.transform || mat4Identity());
     node.wtransform_cb = wtransform_cb;
     node.children = [];
     node.shape = shape || null;
-    node.material_uniforms = material_uniforms || null;
-    node.dynamic_params = dynamic_params || {};
+    node.uniforms = uniforms || null;
+    node.material = material || null;
+    node.texture = texture || null;
     return node;
 }
 
@@ -48,7 +71,9 @@ function walk(node, mtm_stack, mtm) {
         mtm = node.wtransform_cb(mtm);
     }
 
-    node.shape.draw(node.material_uniforms, mtm);
+    if (node.shape) {
+        node.shape.draw(node.uniforms, node.material, node.texture, mtm);
+    }
 
     if (node.children != null) {
         for (let child of node.children) {
@@ -57,16 +82,4 @@ function walk(node, mtm_stack, mtm) {
     }
 
     mtm = mtm_stack.pop();
-}
-
-function update_node_params(node, dynamic_params) {
-    for (let key in dynamic_params) {
-        node.dynamic_params[key] = dynamic_params[key];
-    }
-
-    if (node.children != null) {
-        for (let child of node.children) {
-            update_node_params(child, dynamic_params);
-        }
-    }
 }
