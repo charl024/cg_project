@@ -15,6 +15,9 @@ class ModelNode {
         this.material = null;
         this.texture = null;
 
+        this.bounding = null;
+        this.world_bounding = null;
+
     }
 }
 
@@ -63,7 +66,20 @@ function create_model_node(initial_location, initial_angle, initial_scale, wtran
     node.uniforms = uniforms || null;
     node.material = material || null;
     node.texture = texture || null;
-    node.children = []
+    node.children = [];
+ 
+    node.bounding = {
+        type: "box",
+        min: [-1, -1, -1],
+        max: [ 1,  1,  1]
+    };
+
+    node.world_bounding = {
+        center: [0,0,0],
+        axes: [ [1, 0, 0], [0, 1, 0], [0, 0, 1] ],
+        halfsize: [1, 1, 1]
+    };
+
     return node;
 }
 
@@ -94,6 +110,9 @@ function walk_update(node, mtm_stack, parent_world) {
 
     node.world = world_render;
 
+    // update bounding
+    update_world_obb(node);
+
     // draw using world
     // if (node.shape) {
     //     node.shape.draw(node.uniforms, node.material, node.texture, world_render);
@@ -116,4 +135,69 @@ function walk_draw(node) {
         walk_draw(child);
     }
 }
+
+function update_world_obb(node) {
+
+    const b = node.bounding;
+    const w = node.world_bounding;
+    const M = node.world;
+
+    const local_center = [
+        (b.min[0] + b.max[0]) * 0.5,
+        (b.min[1] + b.max[1]) * 0.5,
+        (b.min[2] + b.max[2]) * 0.5
+    ];
+
+    // half-sizes
+    const half = [
+        (b.max[0] - b.min[0]) * 0.5,
+        (b.max[1] - b.min[1]) * 0.5,
+        (b.max[2] - b.min[2]) * 0.5
+    ];
+
+    // transform center into world
+    const c = multiplyMat4Vec(M, [...local_center, 1]);
+    w.center = [c[0], c[1], c[2]];
+
+    // extract orientation axes (normalized!)
+    const X = [M[0], M[1], M[2]];
+    const Y = [M[4], M[5], M[6]];
+    const Z = [M[8], M[9], M[10]];
+
+    w.axes[0] = norm(X);
+    w.axes[1] = norm(Y);
+    w.axes[2] = norm(Z);
+
+    const scaleX = vec3Magnitude(X);
+    const scaleY = vec3Magnitude(Y);
+    const scaleZ = vec3Magnitude(Z);
+
+    w.halfsize = [
+        half[0] * scaleX,
+        half[1] * scaleY,
+        half[2] * scaleZ
+    ];
+}
+
+
+function collect_nodes(node, out) {
+    out.push(node);
+    for (let c of node.children) {
+        collect_nodes(c, out);
+    }
+    return out;
+}
+
+function detect_collisions(root) {
+    const nodes = collect_nodes(root, []);
+
+    for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+            if (oriented_bounding_box_intersection(nodes[i], nodes[j])) {
+                console.log(`Collision between`, nodes[i], nodes[j]);
+            }
+        }
+    }
+}
+
 

@@ -8,7 +8,6 @@ Most of the stuff where you add an object to the scene is in `scene.js`, so star
 
 ### What to work on
 Currently, we need:
-- Particle Physics
 - More UI (especially keyboard controls)
 - A way to have separate scene trees (should be able to just store the root of each tree in an array, so we loop through the array and call `walk()` for each root). This allows us to have two or more different objects disconnected from one another (ie. a car, and a wall).
 - Improved Perspective/Camera view (maybe switch to isometric or something, cool 3D stuff)

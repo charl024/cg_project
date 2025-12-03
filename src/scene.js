@@ -28,9 +28,9 @@ function create_scene(gl, program, uniforms) {
 
     function build_model() {
         const ground = create_model_node(
-            {x: 0.0, y: -2.0, z: 0.0},
             {x: 0.0, y: 0.0, z: 0.0},
-            {x: 2.0, y: 1.0, z: 2.0},
+            {x: 0.0, y: 0.0, z: 0.0},
+            {x: 1.0, y: 1.0, z: 1.0},
             null,
             shapes.cube,
             uniforms,
@@ -39,12 +39,13 @@ function create_scene(gl, program, uniforms) {
         );
 
         const body = create_model_node(
-            {x: 0.0, y: 2.0, z: 0.0},
-            null,
-            null,
+            {x: 0.0, y: 3.0, z: 0.0},
+            {x: 0.0, y: 0.0, z: 0.0},
+            {x: 1.0, y: 1.0, z: 1.0},
             (mtm) => {
-                const angle = Math.PI / 1024;
-                return multiplyMat4(mtm, mat4RotateY(mat4Identity(), angle));
+                let mat = mat4Identity();
+                mat = mat4Translate(mat, [0.0, 0.08*Math.sin(Date.now()/100), 0.0]);
+                return multiplyMat4(mtm, mat);
             },
             shapes.cube,
             uniforms,
@@ -52,24 +53,7 @@ function create_scene(gl, program, uniforms) {
             textures.rusty_metal1
         );
 
-        const head = create_model_node(
-            {x: 0.0, y: 2.0, z: 0.0},
-            {x: Math.PI / 2, y: 0.0, z: 0.0},
-            null,
-            (mtm) => {
-                const angle = Date.now() * 0.0001 * 5;
-                let mat = mat4Identity();
-                mat = mat4RotateZ(mat, -angle);
-                return multiplyMat4(mtm, mat);
-            },
-            shapes.cone,
-            uniforms,
-            metal_gray_material,
-            textures.rusty_metal2
-        );
-
         add_children(ground, body);
-        // add_children(body, head);
         state.root = ground;
     }
 
