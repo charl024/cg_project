@@ -76,7 +76,8 @@ function add_children(parent_node, child_node) {
     console.log(parent_node.children);
 }
 
-function walk(node, mtm_stack, parent_world) {
+// walk the model tree and update their matrix information
+function walk_update(node, mtm_stack, parent_world) {
 
     mtm_stack.push(mat4Copy(parent_world));
 
@@ -94,14 +95,25 @@ function walk(node, mtm_stack, parent_world) {
     node.world = world_render;
 
     // draw using world
-    if (node.shape) {
-        node.shape.draw(node.uniforms, node.material, node.texture, world_render);
-    }
+    // if (node.shape) {
+    //     node.shape.draw(node.uniforms, node.material, node.texture, world_render);
+    // }
 
     // apply to children
     for (let child of node.children) {
-        walk(child, mtm_stack, world_inherited);
+        walk_update(child, mtm_stack, world_inherited);
     }
 
     parent_world = mtm_stack.pop();
 }
+
+// walk the model tree and draw them
+function walk_draw(node) {
+    if (node.shape) {
+        node.shape.draw(node.uniforms, node.material, node.texture, node.world);
+    }
+    for (let child of node.children) {
+        walk_draw(child);
+    }
+}
+

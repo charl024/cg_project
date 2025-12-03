@@ -44,7 +44,7 @@ const uniforms = {
     uTexOn: gl.getUniformLocation(program, "uTexOn"),
 };
 
-const globalUniforms = {
+const global_uniforms = {
     uMVM: gl.getUniformLocation(program, "uModelViewMatrix"),
     uPM: gl.getUniformLocation(program, "uProjectionMatrix"),
     uLightPos1: gl.getUniformLocation(program, "uLightPos1"),
@@ -140,6 +140,19 @@ function register_ui() {
     });
 }
 
+function set_global_uniforms(view, elapsed) {
+    
+    gl.uniformMatrix4fv(global_uniforms.uPM, false, projection);
+    gl.uniformMatrix4fv(global_uniforms.uMVM, false, view);
+    gl.uniform3fv(global_uniforms.uLightPos1, scene.lights.pos1);
+    gl.uniform3fv(global_uniforms.uLightPos2, scene.lights.pos2);
+    gl.uniform3fv(global_uniforms.uLightColor1, scene.lights.color1);
+    gl.uniform3fv(global_uniforms.uLightColor2, scene.lights.color2);
+    gl.uniform3fv(global_uniforms.uViewPos, scene.viewDirection);
+    gl.uniform1f(global_uniforms.uBumpStrength, scene.bumpStrength);
+    gl.uniform1f(global_uniforms.uTime, elapsed);
+}
+
 // Main rendering loop
 let lastTime = performance.now();
 
@@ -151,25 +164,16 @@ function render(now) {
     update_camera(dt);
     scene_builder.update_lights();
 
+    const stack = [];
+    walk_update(scene.root, stack, mat4Identity());
+
     gl.enable(gl.DEPTH_TEST);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     const view = compute_view_matrix();
-    const modelTransform = mat4Identity();
-
-    gl.uniformMatrix4fv(globalUniforms.uPM, false, projection);
-    gl.uniformMatrix4fv(globalUniforms.uMVM, false, view);
-    gl.uniform3fv(globalUniforms.uLightPos1, scene.lights.pos1);
-    gl.uniform3fv(globalUniforms.uLightPos2, scene.lights.pos2);
-    gl.uniform3fv(globalUniforms.uLightColor1, scene.lights.color1);
-    gl.uniform3fv(globalUniforms.uLightColor2, scene.lights.color2);
-    gl.uniform3fv(globalUniforms.uViewPos, scene.viewDirection);
-    gl.uniform1f(globalUniforms.uBumpStrength, scene.bumpStrength);
-    gl.uniform1f(globalUniforms.uTime, elapsed);
-
-    const stack = [];
-    walk(scene.root, stack, modelTransform);
+    set_global_uniforms(view, elapsed);
+    walk_draw(scene.root);
 
     requestAnimationFrame(render);
 }
