@@ -1,7 +1,12 @@
 class ModelNode {
     constructor() {
-        this.transform = mat4Identity();
-        this.itransform = mat4Identity();
+        // static, inherited
+        this.local = mat4Identity();    
+        // animated, not inherited 
+        this.dynamic = mat4Identity();   
+        // computed
+        this.world = mat4Identity();     
+
         this.wtransform_cb = null;
         this.children = null;
 
@@ -20,35 +25,45 @@ class ModelNode {
 // uniforms: material/transform uniform locations
 // material: material properties for drawing
 // texture: texture info bound to this node (created with create_texture)
-function create_model_node(initial_location, initial_angle, wtransform_cb, shape, uniforms, material, texture) {
+// NOTE: if a transform should be inherited by children, modify node.local
+//       otherwise if a transform should not be inherited by children, we apply it to node.dynamic
+function create_model_node(initial_location, initial_angle, initial_scale, wtransform_cb, shape, uniforms, material, texture) {
     let node = new ModelNode();
 
-    let initial_transform = mat4Identity();
+    let local = mat4Identity();
+    let dynamic = mat4Identity();
 
-    if (initial_location != null) {
-        initial_transform = mat4Translate(initial_transform, [initial_location.x, initial_location.y, initial_location.z]);
+    if (initial_location) {
+        local = mat4Translate(local, [
+            initial_location.x,
+            initial_location.y,
+            initial_location.z
+        ]);
     }
 
-    if (initial_angle != null) {
-        const x_angle = initial_angle.x || 0.0;
-        const y_angle = initial_angle.y || 0.0;
-        const z_angle = initial_angle.z || 0.0;
-
-        initial_transform = mat4RotateX(initial_transform, x_angle);
-        initial_transform = mat4RotateY(initial_transform, y_angle);
-        initial_transform = mat4RotateZ(initial_transform, z_angle);
+    if (initial_angle) {
+        local = mat4RotateX(local, initial_angle.x || 0);
+        local = mat4RotateY(local, initial_angle.y || 0);
+        local = mat4RotateZ(local, initial_angle.z || 0);
     }
 
-    
-    
-    node.transform = initial_transform;
-    node.itransform = mat4Copy(node.transform || mat4Identity());
+    if (initial_scale) {
+        dynamic = mat4Scale(dynamic, [
+            initial_scale.x,
+            initial_scale.y,
+            initial_scale.z
+        ]);
+    }
+
+    node.local = local;
+    node.dynamic = dynamic;
     node.wtransform_cb = wtransform_cb;
-    node.children = [];
+    
     node.shape = shape || null;
     node.uniforms = uniforms || null;
     node.material = material || null;
     node.texture = texture || null;
+    node.children = []
     return node;
 }
 
@@ -61,25 +76,32 @@ function add_children(parent_node, child_node) {
     console.log(parent_node.children);
 }
 
-function walk(node, mtm_stack, mtm) {
+function walk(node, mtm_stack, parent_world) {
 
-    mtm_stack.push(mat4Copy(mtm));
+    mtm_stack.push(mat4Copy(parent_world));
 
-    mtm = multiplyMat4(mtm, node.transform);
+    // apply inherited transform
+    let world_inherited = multiplyMat4(parent_world, node.local);
     
-    if (node.wtransform_cb != null) {
-        mtm = node.wtransform_cb(mtm);
+    // dynamic callback updates node.dynamic
+    if (node.wtransform_cb) {
+        node.dynamic = node.wtransform_cb(node.dynamic);
     }
 
+    // apply non-inherited dynamic transform
+    let world_render = multiplyMat4(world_inherited, node.dynamic);
+
+    node.world = world_render;
+
+    // draw using world
     if (node.shape) {
-        node.shape.draw(node.uniforms, node.material, node.texture, mtm);
+        node.shape.draw(node.uniforms, node.material, node.texture, world_render);
     }
 
-    if (node.children != null) {
-        for (let child of node.children) {
-            walk(child, mtm_stack, mtm);
-        }
+    // apply to children
+    for (let child of node.children) {
+        walk(child, mtm_stack, world_inherited);
     }
 
-    mtm = mtm_stack.pop();
+    parent_world = mtm_stack.pop();
 }
