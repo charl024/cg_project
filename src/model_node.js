@@ -89,7 +89,6 @@ function add_children(parent_node, child_node) {
         parent_node.children = [];
     }
     parent_node.children.push(child_node);
-    console.log(parent_node.children);
 }
 
 // walk the model tree and update their matrix information
@@ -194,7 +193,7 @@ function detect_collisions(root) {
     for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
             if (oriented_bounding_box_intersection(nodes[i], nodes[j])) {
-                console.log(`Collision between`, nodes[i], nodes[j]);
+                // console.log(`Collision between`, nodes[i], nodes[j]);
             }
         }
     }

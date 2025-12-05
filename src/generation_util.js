@@ -1,0 +1,159 @@
+// poisson disc sampling
+function get_spaced_points(bounds, min_spacing, attempts = 30, max_points) {
+    let xmin = bounds.xmin;
+    let xmax = bounds.xmax;
+    let ymin = bounds.ymin;
+    let ymax = bounds.ymax;
+    let zmin = bounds.zmin;
+    let zmax = bounds.zmax;
+
+    let cell_size = min_spacing / Math.sqrt(3);
+
+    let W = Math.ceil((xmax - xmin) / cell_size);
+    let H = Math.ceil((ymax - ymin) / cell_size);
+    let L = Math.ceil((zmax - zmin) / cell_size);
+
+    let grid = new Array(W * H * L).fill(-1);
+
+    let points = [];
+    let active = [];
+
+    let initial_point = {
+        x: Math.random() * (xmax - xmin) + xmin,
+        y: Math.random() * (ymax - ymin) + ymin,
+        z: Math.random() * (zmax - zmin) + zmin
+    };
+
+    points.push(initial_point);
+    active.push(0);
+
+    let gx = Math.floor((initial_point.x - xmin) / cell_size);
+    let gy = Math.floor((initial_point.y - ymin) / cell_size);
+    let gz = Math.floor((initial_point.z - zmin) / cell_size);
+
+    grid[dim_idx_conv_3t1(gx, gy, gz, W, H)] = 0;
+
+    while (active.length !== 0) {
+
+        if (points.length >= max_points) {
+            break;
+        }
+
+        let rand_idx = Math.floor(Math.random() * active.length);
+        let point_index = active[rand_idx];
+        let point = points[point_index];
+
+        let found_new = false;
+
+        for (let i = 0; i < attempts; i++) {
+
+            let q = random_point_in_annulus_3d(point, min_spacing, 2 * min_spacing);
+
+            if (!check_bounds_world(q, xmin, xmax, ymin, ymax, zmin, zmax)) {
+                continue;
+            }
+
+            if (is_valid(q, points, grid, xmin, ymin, zmin, cell_size, W, H, L, min_spacing)) {
+                
+                let idx = points.length;
+                points.push(q);
+                active.push(idx);
+
+                // place in grid
+                let qx = Math.floor((q.x - xmin) / cell_size);
+                let qy = Math.floor((q.y - ymin) / cell_size);
+                let qz = Math.floor((q.z - zmin) / cell_size);
+
+                grid[dim_idx_conv_3t1(qx, qy, qz, W, H)] = idx;
+
+                found_new = true;
+                break;
+            }
+        }
+
+        if (!found_new) {
+            // remove from active list
+            active.splice(rand_idx, 1);
+        }
+    }
+
+    return points;
+}
+
+function is_valid(p, points, grid, xmin, ymin, zmin, cell_size, W, H, L, min_spacing) {
+
+    let gx = Math.floor((p.x - xmin) / cell_size);
+    let gy = Math.floor((p.y - ymin) / cell_size);
+    let gz = Math.floor((p.z - zmin) / cell_size);
+
+    // search neighborhood
+    for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dz = -1; dz <= 1; dz++) {
+
+                let nx = gx + dx;
+                let ny = gy + dy;
+                let nz = gz + dz;
+
+                if (nx < 0 || ny < 0 || nz < 0 || nx >= W || ny >= H || nz >= L)
+                    continue;
+
+                let idx = grid[dim_idx_conv_3t1(nx, ny, nz, W, H)];
+
+                if (idx !== -1) {
+                    let other = points[idx];
+
+                    let dxv = p.x - other.x;
+                    let dyv = p.y - other.y;
+                    let dzv = p.z - other.z;
+
+                    let dist_sq = dxv*dxv + dyv*dyv + dzv*dzv;
+
+                    if (dist_sq < min_spacing * min_spacing) {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+function check_bounds_world(p, xmin, xmax, ymin, ymax, zmin, zmax) {
+    return (
+        p.x >= xmin && p.x <= xmax &&
+        p.y >= ymin && p.y <= ymax &&
+        p.z >= zmin && p.z <= zmax
+    );
+}
+
+function random_point_in_annulus_3d(p, r_min, r_max) {
+    let radius = Math.random() * (r_max - r_min) + r_min;
+
+    let theta = Math.random() * 2 * Math.PI;
+    let u = Math.random() * 2 - 1; 
+    let phi = Math.acos(u);
+
+    let dx = Math.sin(phi) * Math.cos(theta);
+    let dy = Math.sin(phi) * Math.sin(theta);
+    let dz = Math.cos(phi);
+
+    return {
+        x: p.x + dx * radius,
+        y: p.y + dy * radius,
+        z: p.z + dz * radius
+    };
+}
+
+function dim_idx_conv_3t1(x, y, z, W, H) {
+    return z * W * H + y * W + x;
+}
+
+function dim_idx_conv_1t3(idx, W, H) {
+    let z = Math.floor(idx / (W * H));
+    idx -= z * W * H;
+    let y = Math.floor(idx / W);
+    let x = idx % W;
+    return {x: x, y: y, z: z};
+}

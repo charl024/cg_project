@@ -26,35 +26,111 @@ function create_scene(gl, program, uniforms) {
         root: null,
     };
 
-    function build_model() {
-        const ground = create_model_node(
+    function generate_level() {
+        const BASE_WIDTH = 10;
+        const BASE_HEIGHT = 10;
+        const BASE_LENGTH = 10;
+
+        const MAX_PLATFORMS = 16;
+        const MAX_SPAWN_HEIGHT = 10;
+
+        let bounds = {
+            xmin: -BASE_WIDTH,
+            xmax: BASE_WIDTH,
+            ymin: 2,
+            ymax: BASE_HEIGHT,
+            zmin: -BASE_LENGTH,
+            zmax: BASE_LENGTH
+        };
+
+        const base = create_model_node(
+            {x: 0.0, y: -5.0, z: 0.0},
             {x: 0.0, y: 0.0, z: 0.0},
-            {x: 0.0, y: 0.0, z: 0.0},
-            {x: 1.0, y: 1.0, z: 1.0},
+            {x: BASE_WIDTH, y: 1.0, z: BASE_LENGTH},
             null,
             shapes.cube,
             uniforms,
             ground_material,
-            textures.concrete_floor
+            null
         );
 
-        const body = create_model_node(
-            {x: 0.0, y: 3.0, z: 0.0},
-            {x: 0.0, y: 0.0, z: 0.0},
-            {x: 1.0, y: 1.0, z: 1.0},
-            (mtm) => {
-                let mat = mat4Identity();
-                mat = mat4Translate(mat, [0.0, 0.08*Math.sin(Date.now()/100), 0.0]);
-                return multiplyMat4(mtm, mat);
-            },
-            shapes.cube,
-            uniforms,
-            metal_orange_material,
-            textures.rusty_metal1
-        );
 
-        add_children(ground, body);
-        state.root = ground;
+        let points = get_spaced_points(bounds, 5, 5, 20);
+        
+        console.log(points.length);
+
+        for (let point of points) {
+             let platform = create_model_node(
+                {x: point.x, y: point.y, z: point.z},
+                {x: 0.0, y: 0.0, z: 0.0},
+                {x: 1.0, y: 0.1, z: 1.0},
+                null,
+                shapes.cube,
+                uniforms,
+                metal_red_material,
+                null
+            );
+
+            add_children(base, platform);
+        }
+
+
+
+        // for (let i = 0; i < MAX_PLATFORMS; i++) {
+
+        //     let rand_y = Math.random() * MAX_SPAWN_HEIGHT
+        //     let rand_x = Math.random() * BASE_WIDTH * 2 - BASE_WIDTH;
+        //     let rand_z = Math.random() * BASE_LENGTH * 2 - BASE_LENGTH;
+
+        //     let platform = create_model_node(
+        //         {x: rand_x, y: rand_y, z: rand_z},
+        //         {x: 0.0, y: 0.0, z: 0.0},
+        //         {x: 1.0, y: 0.1, z: 1.0},
+        //         null,
+        //         shapes.cube,
+        //         uniforms,
+        //         metal_red_material,
+        //         null
+        //     );
+
+        //     add_children(base, platform);
+        // }
+
+        return base;
+    }
+
+    function build_model() {
+        // const ground = create_model_node(
+        //     {x: 0.0, y: -5.0, z: 0.0},
+        //     {x: 0.0, y: 0.0, z: 0.0},
+        //     {x: 10.0, y: 1.0, z: 10.0},
+        //     null,
+        //     shapes.cube,
+        //     uniforms,
+        //     ground_material,
+        //     null
+        // );
+
+        // const body = create_model_node(
+        //     {x: 0.0, y: 3.0, z: 0.0},
+        //     {x: 0.0, y: 0.0, z: 0.0},
+        //     {x: 1.0, y: 1.0, z: 1.0},
+        //     (mtm) => {
+        //         let mat = mat4Identity();
+        //         mat = mat4Translate(mat, [0.0, 0.08*Math.sin(Date.now()/100), 0.0]);
+        //         return multiplyMat4(mtm, mat);
+        //     },
+        //     shapes.cube,
+        //     uniforms,
+        //     metal_orange_material,
+        //     textures.rusty_metal1
+        // );
+
+        // add_children(ground, body);
+
+        let base = generate_level();
+
+        state.root = base;
     }
 
     function update_lights() {

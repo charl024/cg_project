@@ -6,6 +6,10 @@ Shapes are built via `make_shape`, materials come from `src/material_data.js`, t
 ### Suggestions
 Most of the stuff where you add an object to the scene is in `scene.js`, so start from there when building a scene. Take a look at main.js too, I spent a lot of time cleaning it up.
 
+### Changelog
+    - Added collision detection between two different nodes. Check collision.js for bounding box logic.
+    - Added random platform generation within a given 3D space bound, using Poisson Disc sampling so that they're evenly spaced. Check generation_util.js for the code.
+
 ### What to work on
 Currently, we need:
 - More UI (especially keyboard controls)

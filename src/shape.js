@@ -21,7 +21,7 @@ class Shape {
         const gl = this.gl;
 
         const resolved_material = {
-            Ka: material.Ka ?? 0.5,
+            Ka: material.Ka ?? 0.3,
             Kd: material.Kd ?? 0.5,
             Ks: material.Ks ?? 0.5,
             alpha: material.alpha ?? 10.0,
