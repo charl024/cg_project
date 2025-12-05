@@ -35,12 +35,12 @@ function create_scene(gl, program, uniforms) {
         const MAX_SPAWN_HEIGHT = 10;
 
         let bounds = {
-            xmin: -BASE_WIDTH,
-            xmax: BASE_WIDTH,
+            xmin: -BASE_WIDTH + 2,
+            xmax: BASE_WIDTH - 2,
             ymin: 2,
             ymax: BASE_HEIGHT,
-            zmin: -BASE_LENGTH,
-            zmax: BASE_LENGTH
+            zmin: -BASE_LENGTH + 2,
+            zmax: BASE_LENGTH - 2
         };
 
         const base = create_model_node(
@@ -55,15 +55,18 @@ function create_scene(gl, program, uniforms) {
         );
 
 
-        let points = get_spaced_points(bounds, 5, 5, 20);
+        let points = get_spaced_points(bounds, 5, 5, MAX_PLATFORMS, false);
         
         console.log(points.length);
 
         for (let point of points) {
+
+            let height = Math.random() * BASE_HEIGHT;
+
              let platform = create_model_node(
-                {x: point.x, y: point.y, z: point.z},
+                {x: point.x, y: height, z: point.z},
                 {x: 0.0, y: 0.0, z: 0.0},
-                {x: 1.0, y: 0.1, z: 1.0},
+                {x: 1.0, y: height, z: 1.0},
                 null,
                 shapes.cube,
                 uniforms,

@@ -1,5 +1,6 @@
 // poisson disc sampling
-function get_spaced_points(bounds, min_spacing, attempts = 30, max_points) {
+function get_spaced_points(bounds, min_spacing, attempts = 30, max_points, is3D = true) {
+
     let xmin = bounds.xmin;
     let xmax = bounds.xmax;
     let ymin = bounds.ymin;
@@ -7,10 +8,12 @@ function get_spaced_points(bounds, min_spacing, attempts = 30, max_points) {
     let zmin = bounds.zmin;
     let zmax = bounds.zmax;
 
-    let cell_size = min_spacing / Math.sqrt(3);
+    // dimension-based cell size
+    let cell_size = min_spacing / Math.sqrt(is3D ? 3 : 2);
 
+    // grid dims
     let W = Math.ceil((xmax - xmin) / cell_size);
-    let H = Math.ceil((ymax - ymin) / cell_size);
+    let H = is3D ? Math.ceil((ymax - ymin) / cell_size) : 1;     // 2D → H = 1
     let L = Math.ceil((zmax - zmin) / cell_size);
 
     let grid = new Array(W * H * L).fill(-1);
@@ -18,17 +21,24 @@ function get_spaced_points(bounds, min_spacing, attempts = 30, max_points) {
     let points = [];
     let active = [];
 
-    let initial_point = {
-        x: Math.random() * (xmax - xmin) + xmin,
-        y: Math.random() * (ymax - ymin) + ymin,
-        z: Math.random() * (zmax - zmin) + zmin
-    };
+    // initial point
+    let initial_point = is3D
+        ? {
+            x: Math.random() * (xmax - xmin) + xmin,
+            y: Math.random() * (ymax - ymin) + ymin,
+            z: Math.random() * (zmax - zmin) + zmin
+        }
+        : {
+            x: Math.random() * (xmax - xmin) + xmin,
+            y: 0,
+            z: Math.random() * (zmax - zmin) + zmin
+        };
 
     points.push(initial_point);
     active.push(0);
 
     let gx = Math.floor((initial_point.x - xmin) / cell_size);
-    let gy = Math.floor((initial_point.y - ymin) / cell_size);
+    let gy = is3D ? Math.floor((initial_point.y - ymin) / cell_size) : 0;
     let gz = Math.floor((initial_point.z - zmin) / cell_size);
 
     grid[dim_idx_conv_3t1(gx, gy, gz, W, H)] = 0;
@@ -47,21 +57,22 @@ function get_spaced_points(bounds, min_spacing, attempts = 30, max_points) {
 
         for (let i = 0; i < attempts; i++) {
 
-            let q = random_point_in_annulus_3d(point, min_spacing, 2 * min_spacing);
+            let q = is3D
+                ? random_point_in_annulus_3d(point, min_spacing, 2 * min_spacing)
+                : random_point_in_annulus_2d(point, min_spacing, 2 * min_spacing);
 
-            if (!check_bounds_world(q, xmin, xmax, ymin, ymax, zmin, zmax)) {
+            if (!check_bounds_world_dim(q, xmin, xmax, ymin, ymax, zmin, zmax, is3D)) {
                 continue;
             }
 
-            if (is_valid(q, points, grid, xmin, ymin, zmin, cell_size, W, H, L, min_spacing)) {
-                
+            if (is_valid_dim(q, points, grid, xmin, ymin, zmin, cell_size, W, H, L, min_spacing, is3D)) {
+
                 let idx = points.length;
                 points.push(q);
                 active.push(idx);
 
-                // place in grid
                 let qx = Math.floor((q.x - xmin) / cell_size);
-                let qy = Math.floor((q.y - ymin) / cell_size);
+                let qy = is3D ? Math.floor((q.y - ymin) / cell_size) : 0;
                 let qz = Math.floor((q.z - zmin) / cell_size);
 
                 grid[dim_idx_conv_3t1(qx, qy, qz, W, H)] = idx;
@@ -72,7 +83,6 @@ function get_spaced_points(bounds, min_spacing, attempts = 30, max_points) {
         }
 
         if (!found_new) {
-            // remove from active list
             active.splice(rand_idx, 1);
         }
     }
@@ -80,15 +90,14 @@ function get_spaced_points(bounds, min_spacing, attempts = 30, max_points) {
     return points;
 }
 
-function is_valid(p, points, grid, xmin, ymin, zmin, cell_size, W, H, L, min_spacing) {
+function is_valid_dim(p, points, grid, xmin, ymin, zmin, cell_size, W, H, L, min_spacing, is3D) {
 
     let gx = Math.floor((p.x - xmin) / cell_size);
-    let gy = Math.floor((p.y - ymin) / cell_size);
+    let gy = is3D ? Math.floor((p.y - ymin) / cell_size) : 0;
     let gz = Math.floor((p.z - zmin) / cell_size);
 
-    // search neighborhood
     for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
+        for (let dy = (is3D ? -1 : 0); dy <= (is3D ? 1 : 0); dy++) {
             for (let dz = -1; dz <= 1; dz++) {
 
                 let nx = gx + dx;
@@ -101,11 +110,12 @@ function is_valid(p, points, grid, xmin, ymin, zmin, cell_size, W, H, L, min_spa
                 let idx = grid[dim_idx_conv_3t1(nx, ny, nz, W, H)];
 
                 if (idx !== -1) {
+
                     let other = points[idx];
 
                     let dxv = p.x - other.x;
-                    let dyv = p.y - other.y;
                     let dzv = p.z - other.z;
+                    let dyv = is3D ? (p.y - other.y) : 0;
 
                     let dist_sq = dxv*dxv + dyv*dyv + dzv*dzv;
 
@@ -120,12 +130,23 @@ function is_valid(p, points, grid, xmin, ymin, zmin, cell_size, W, H, L, min_spa
     return true;
 }
 
-function check_bounds_world(p, xmin, xmax, ymin, ymax, zmin, zmax) {
-    return (
-        p.x >= xmin && p.x <= xmax &&
-        p.y >= ymin && p.y <= ymax &&
-        p.z >= zmin && p.z <= zmax
-    );
+function check_bounds_world_dim(p, xmin, xmax, ymin, ymax, zmin, zmax, is3D) {
+    if (p.x < xmin || p.x > xmax) return false;
+    if (p.z < zmin || p.z > zmax) return false;
+    if (is3D && (p.y < ymin || p.y > ymax)) return false;
+    return true;
+}
+
+function random_point_in_annulus_2d(p, r_min, r_max) {
+
+    let radius = Math.random() * (r_max - r_min) + r_min;
+    let theta = Math.random() * 2 * Math.PI;
+
+    return {
+        x: p.x + Math.cos(theta) * radius,
+        y: 0,
+        z: p.z + Math.sin(theta) * radius
+    };
 }
 
 function random_point_in_annulus_3d(p, r_min, r_max) {
