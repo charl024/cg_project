@@ -57,7 +57,7 @@ const global_uniforms = {
     uTime: gl.getUniformLocation(program, "uTime"),
 };
 
-// Camera data - 3D third-person camera rigidly attached to taxi
+// Camera data - 3D third-person camera attached to taxi
 const camera = {
     // Camera position in world space
     pos: { x: 0, y: 10, z: -15 },
@@ -80,7 +80,6 @@ function register_input() {
 }
 
 function update_camera(dt) {
-    // Use taxiPhysics.position directly (more reliable than reading from matrix)
     const taxiX = taxiPhysics.position.x;
     const taxiY = taxiPhysics.position.y;
     const taxiZ = taxiPhysics.position.z;
@@ -495,21 +494,40 @@ function update_taxi(dt) {
         gameState.fuel = Math.min(gameState.maxFuel, gameState.fuel + gameState.refuelRate * dt);
     }
 
-    // Control flame visibility - thrust flame shows when using vertical thrust
-    if (scene.taxi.thrustFlame) {
-        const thrustScale = (inputKeys.thrust && hasFuel) ? 1.0 : 0.0;
-        scene.taxi.thrustFlame.dynamic = mat4Scale(mat4Identity(), [0.4 * thrustScale, 0.5 * thrustScale, 0.3 * thrustScale]);
+    //  flame visibility logic
+    // back thrust flame
+    if (scene.taxi.thrustFlame1 && scene.taxi.thrustFlame2) {
+        const thrustScale = (inputKeys.forward && hasFuel) ? 1.0 : 0.0;
+
+        scene.taxi.thrustFlame1.dynamic = mat4Scale(
+            mat4Identity(),
+            [0.3 * thrustScale, 0.3 * thrustScale, 0.5 * thrustScale]
+        );
+
+        scene.taxi.thrustFlame2.dynamic = mat4Scale(
+            mat4Identity(),
+            [0.3 * thrustScale, 0.3 * thrustScale, 0.5 * thrustScale]
+        );
     }
 
-    // Rear flame shows when moving forward
+    // left flame, when turning right
     if (scene.taxi.leftFlame) {
-        const moveScale = (moveInput > 0 && hasFuel) ? 1.0 : 0.0;
-        scene.taxi.leftFlame.dynamic = mat4Scale(mat4Identity(), [0.3 * moveScale, 0.4 * moveScale, 0.25 * moveScale]);
+        const flameScale = (inputKeys.left && hasFuel) ? 1.0 : 0.0;
+
+        scene.taxi.leftFlame.dynamic = mat4Scale(
+            mat4Identity(),
+            [0.3 * flameScale, 0.4 * flameScale, 1.0 * flameScale]
+        );
     }
 
-    // Hide right flame (not used in 3D mode)
+    // right flame, when turning left
     if (scene.taxi.rightFlame) {
-        scene.taxi.rightFlame.dynamic = mat4Scale(mat4Identity(), [0, 0, 0]);
+        const flameScale = (inputKeys.right && hasFuel) ? 1.0 : 0.0;
+
+        scene.taxi.rightFlame.dynamic = mat4Scale(
+            mat4Identity(),
+            [0.3 * flameScale, 0.4 * flameScale, 1.0 * flameScale]
+        );
     }
 }
 

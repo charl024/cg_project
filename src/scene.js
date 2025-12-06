@@ -201,11 +201,10 @@ function create_scene(gl, program, uniforms) {
         );
         add_children(taxiRoot, rearRightWheel);
 
-        // Thrust flame - below taxi (visible when thrusting up)
-        const thrustFlame = create_model_node(
-            {x: 0.0, y: -0.7, z: 0.0},
-            {x: 0.0, y: 0.0, z: 0.0},
-            {x: 1.0, y: 1.0, z: 1.0},
+        const thrustFlame1 = create_model_node(
+            {x: 2.2, y: -0.3, z: -0.5},
+            {x: 0.0, y: -Math.PI / 2, z: 0.0},
+            {x: 0.5, y: 8.0, z: 0.5},
             null,
             shapes.cone,
             uniforms,
@@ -219,13 +218,11 @@ function create_scene(gl, program, uniforms) {
             },
             null
         );
-        add_children(taxiRoot, thrustFlame);
 
-        // Rear flame (visible when moving forward - shoots from back of taxi)
-        const leftFlame = create_model_node(
-            {x: 0, y: 0.0, z: -1.5},  // Behind the taxi
-            {x: Math.PI / 2, y: 0, z: 0},  // Point backward
-            {x: 0.5, y: 1.0, z: 0.5},
+        const thrustFlame2 = create_model_node(
+            {x: 2.2, y: -0.3, z: 0.5},
+            {x: 0.0, y: -Math.PI / 2, z: 0.0},
+            {x: 1.0, y: 8.0, z: 1.0},
             null,
             shapes.cone,
             uniforms,
@@ -234,35 +231,42 @@ function create_scene(gl, program, uniforms) {
                 Kd: 0.6,
                 Ks: 0.3,
                 alpha: 10.0,
-                color: [1.0, 0.5, 0.1], // Orange-yellow
+                color: [1.0, 0.4, 0.0], // Orange
                 bumpOn: false
             },
+            null
+        );
+
+        add_children(taxiRoot, thrustFlame1);
+        add_children(taxiRoot, thrustFlame2);
+
+        const leftFlame = create_model_node(
+            {x: 0.0, y: 0.0, z: -1.4},
+            {x: Math.PI * 2, y: 0, z: 0},
+            {x: 0.5, y: 1.0, z: 0.5},
+            null,
+            shapes.cone,
+            uniforms,
+            { Ka:0.8, Kd:0.6, Ks:0.3, alpha:10.0, color:[1.0,0.5,0.1], bumpOn:false },
+            null
+        );
+
+        const rightFlame = create_model_node(
+            {x: 0.0, y: 0.0, z: 1.4},
+            {x: Math.PI, y: 0, z: 0},
+            {x: 0.5, y: 1.0, z: 0.5},
+            null,
+            shapes.cone,
+            uniforms,
+            { Ka:0.8, Kd:0.6, Ks:0.3, alpha:10.0, color:[1.0,0.5,0.1], bumpOn:false },
             null
         );
         add_children(taxiRoot, leftFlame);
-
-        // Right flame (unused in 3D mode, kept for compatibility)
-        const rightFlame = create_model_node(
-            {x: 0, y: 0.0, z: -1.5},
-            {x: Math.PI / 2, y: 0, z: 0},
-            {x: 0.5, y: 1.0, z: 0.5},
-            null,
-            shapes.cone,
-            uniforms,
-            {
-                Ka: 0.8,
-                Kd: 0.6,
-                Ks: 0.3,
-                alpha: 10.0,
-                color: [1.0, 0.5, 0.1], // Orange-yellow
-                bumpOn: false
-            },
-            null
-        );
         add_children(taxiRoot, rightFlame);
 
         // Store references to flame nodes for toggling visibility
-        taxiRoot.thrustFlame = thrustFlame;
+        taxiRoot.thrustFlame1 = thrustFlame1;
+        taxiRoot.thrustFlame2 = thrustFlame2;
         taxiRoot.leftFlame = leftFlame;
         taxiRoot.rightFlame = rightFlame;
 
@@ -277,10 +281,10 @@ function create_scene(gl, program, uniforms) {
     }
 
     const MAX_LEVELS = 3;
-    const BASE_WIDTH = 50;   // Expanded 3D play area (X axis)
+    const BASE_WIDTH = 50;
     const BASE_HEIGHT = 20;
-    const BASE_LENGTH = 50;  // Expanded 3D play area (Z axis) - now square
-    const MAX_PLATFORMS = 40;  // More platforms for larger area
+    const BASE_LENGTH = 50;
+    const MAX_PLATFORMS = 40;
     const MAX_SPAWN_HEIGHT = 15;
 
     function generate_level() {
