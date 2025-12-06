@@ -12,7 +12,49 @@ Most of the stuff where you add an object to the scene is in `scene.js`, so star
 
 ### Changelog
 
-#### Recent Session Changes (Taxi Implementation)
+#### Latest Session Changes (UI System Implementation)
+- **Game UI Overlay Created** (`index.html`):
+  - Retro-styled UI bar positioned at bottom of canvas (brown/tan with green border)
+  - Matches original Commodore 64 Space Taxi aesthetic
+  - Positioned as absolute overlay on top of WebGL canvas
+  - Z-indexed at 100 to stay on top
+
+- **UI Components** (`index.html`):
+  - **Money Display**: Shows current money with $ symbol (starts at $0.00)
+  - **Lives Display**: 5 life indicators (gold circles that gray out when lost)
+  - **Fuel Gauge**: Visual bar with E (Empty) to F (Full) markers
+    - Gradient bar: red (empty) → yellow (half) → green (full)
+    - Real-time width updates based on fuel percentage
+  - **Time Display**: Game time in M:SS format
+
+- **Game State Tracking** (`src/main.js`):
+  - `gameState` object added with:
+    - `lives`: 5 starting lives
+    - `fuel`: 100.0 (0-100 range)
+    - `money`: $0.00 starting cash
+    - `time`: Elapsed game time in seconds
+    - `fuelConsumptionRate`: 5 fuel/second for vertical thrust
+    - `horizontalFuelRate`: 3 fuel/second for horizontal thrust
+
+- **Fuel Mechanics** (`src/main.js`):
+  - `consume_fuel(dt)`: Depletes fuel based on thrust usage
+    - Up arrow: 5 fuel/second
+    - Left/Right arrows (airborne): 3 fuel/second
+  - `can_use_thrust()`: Checks if fuel is available
+  - Taxi cannot thrust when fuel reaches 0
+  - Thrust flames only visible when fuel is available
+  - Integrated with existing taxi physics system
+
+- **UI Update System** (`src/main.js`):
+  - `update_ui()`: Updates all UI elements each frame
+    - Money formatted to 2 decimal places
+    - Time formatted as M:SS with zero-padded seconds
+    - Fuel bar width dynamically adjusted (0-100%)
+    - Lives icons toggled between active/lost states
+  - Called every frame in render loop
+  - Smooth fuel bar transitions via CSS
+
+#### Previous Session Changes (Taxi Implementation)
 - **Taxi Model Created** (`src/scene.js`):
   - Built 3D taxi using primitive shapes: yellow body and cabin, dark windshield, orange roof sign, 4 black cylinder wheels
   - Custom bounding box set to exclude flame effects from collision detection
@@ -87,6 +129,19 @@ Most of the stuff where you add an object to the scene is in `scene.js`, so star
   - 3D mode: floating platforms in space
   - 2D mode: pillars/platforms on XZ plane (for side-scrolling levels)
 - **Level Generation** (`src/scene.js`): Basic platform spawning system with configurable bounds
+- **Game State System** (`src/main.js`): Tracks lives, fuel, money, and time
+  - Fuel consumption based on thrust usage (5/sec vertical, 3/sec horizontal)
+  - Fuel depletion prevents thrust when empty
+  - Lives tracking (starts at 5)
+  - Money accumulation system (starts at $0.00)
+  - Time tracking from game start
+- **UI/HUD System** (`index.html`, `src/main.js`): Retro-styled overlay display
+  - HTML overlay positioned over WebGL canvas
+  - Real-time fuel gauge with color gradient
+  - Lives display with 5 life indicators
+  - Money and time displays
+  - CSS-styled to match Commodore 64 aesthetic
+  - Frame-by-frame updates via `update_ui()`
 
 ### Math & Utilities
 - **Transform Utilities** (`src/transformations.js`): Matrix operations, perspective/orthographic projection, vector math
@@ -102,7 +157,10 @@ Most of the stuff where you add an object to the scene is in `scene.js`, so star
   - [x] Horizontal momentum and air control
   - [x] Gravity
   - [x] Rotation controls (tilt left/right) - Implemented as 180° flip based on direction
-- [ ] Fuel system with consumption and refueling
+- [x] Fuel system with consumption and refueling
+  - [x] Fuel consumption based on thrust usage
+  - [x] Prevent thrust when fuel depleted
+  - [ ] Fuel refueling stations/pickups
 - [x] Collision response (taxi hitting platforms/walls)
 
 ### 2. Side-Scrolling Camera System
@@ -134,13 +192,13 @@ Most of the stuff where you add an object to the scene is in `scene.js`, so star
 - [ ] Pause state
 - [ ] Game over state
 - [ ] Level complete state
-- [ ] HUD overlay showing:
-  - [ ] Fuel gauge
-  - [ ] Score
-  - [ ] Timer
+- [x] HUD overlay showing:
+  - [x] Fuel gauge (visual bar with color gradient)
+  - [x] Score/Money display
+  - [x] Timer (M:SS format)
   - [ ] Current objective
-  - [ ] Lives/attempts remaining
-- [ ] UI rendering system (HTML overlay or WebGL text)
+  - [x] Lives/attempts remaining (5 life indicators)
+- [x] UI rendering system (HTML overlay or WebGL text) - HTML overlay implemented
 
 ### 6. Input System Refinement
 - [x] Map keyboard controls to taxi controls (thrust, left, right) - Arrow keys implemented
@@ -153,7 +211,7 @@ Most of the stuff where you add an object to the scene is in `scene.js`, so star
   - [x] Taxi thrust/exhaust - Implemented as flame cones (bottom + side thrusters)
   - [ ] Collision sparks
   - [ ] Landing dust
-- [ ] Visual feedback for fuel low warning
+- [x] Visual feedback for fuel low warning - Fuel gauge shows color gradient (red when low)
 - [x] Smooth taxi rotation animation - 180° flip based on direction
 - [ ] Landing pad highlight/animation
 
@@ -193,17 +251,62 @@ python3 -m http.server 8000
 Then open your browser to: `http://localhost:8000`
 
 ### Controls
-- **Arrow Up**: Thrust (hold to fly)
-- **Arrow Left/Right**: Horizontal control (only works when airborne)
+- **Arrow Up**: Thrust (hold to fly, consumes fuel at 5/sec)
+- **Arrow Left/Right**: Horizontal control (only works when airborne, consumes fuel at 3/sec)
 - **WASD**: Move camera view
 - **Mouse Drag**: Rotate camera
 - **Mouse Wheel**: Zoom camera
 
+### UI System
+
+The game features a retro-styled HUD overlay positioned at the bottom of the screen, inspired by the original Commodore 64 Space Taxi:
+
+**HUD Elements (Left to Right):**
+1. **Money Display** (`$`): Shows current cash, starts at $0.00
+   - Will increase when completing deliveries/objectives
+
+2. **Lives Display**: Five circular indicators
+   - Gold circles = lives remaining
+   - Gray circles = lives lost
+   - Starts with 5 lives
+
+3. **Fuel Gauge** (`E ▬▬▬▬ F`): Visual fuel bar
+   - E (Empty) on left, F (Full) on right
+   - Color gradient: Red (low) → Yellow (medium) → Green (full)
+   - Width adjusts in real-time as fuel is consumed
+   - Fuel depletes when using thrust controls
+
+4. **Time Display** (`TIME`): Game timer in M:SS format
+   - Counts up from 0:00
+   - Used for scoring/completion bonuses
+
+**Fuel System:**
+- Starts at 100% (full)
+- Vertical thrust (↑): 5 fuel/second
+- Horizontal thrust (← →): 3 fuel/second (airborne only)
+- When fuel reaches 0, thrust is disabled
+- Taxi flames disappear when out of fuel
+
+**Technical Implementation:**
+- HTML/CSS overlay positioned absolutely over WebGL canvas
+- Updated every frame via `update_ui()` in main.js
+- Smooth CSS transitions for fuel bar width changes
+- Game state tracked in `gameState` object
+
 ### What to work on
 Currently, we need:
-- Fuel system with consumption and refueling
+- ~~Fuel system with consumption and refueling~~ ✓ **DONE** (consumption implemented, refueling stations still needed)
+- ~~HUD overlay (fuel gauge, score, timer)~~ ✓ **DONE**
 - Landing pads with passenger pickup/dropoff
 - Proper level design (narrow passages, obstacles)
 - Camera follow system (lock to taxi position)
 - Game states (menu, playing, game over)
-- HUD overlay (fuel gauge, score, timer)
+- Sound effects and audio integration
+
+### Next Priority Tasks
+1. **Camera Follow System**: Make camera track taxi position for proper side-scrolling gameplay
+2. **Landing Pads**: Create designated landing zones for pickup/dropoff
+3. **Passenger System**: Implement passenger spawning, pickup, and dropoff mechanics
+4. **Fuel Refueling**: Add fuel stations or pickups to replenish fuel
+5. **Level Design**: Create proper Space Taxi levels with narrow passages and obstacles
+6. **Game States**: Implement menu, pause, and game over screens

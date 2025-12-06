@@ -166,6 +166,65 @@ const taxiPhysics = {
     facingRight: true  // Track which direction taxi is facing
 };
 
+// Game state
+const gameState = {
+    lives: 5,
+    fuel: 100.0,  // 0-100
+    maxFuel: 100.0,
+    money: 0.00,
+    time: 0.0,    // in seconds
+    fuelConsumptionRate: 5.0,  // fuel per second when thrusting
+    horizontalFuelRate: 3.0    // fuel per second when using horizontal thrust
+};
+
+// UI update functions
+function update_ui() {
+    // Update money display
+    document.getElementById("moneyDisplay").textContent = gameState.money.toFixed(2);
+
+    // Update time display (format as M:SS)
+    const minutes = Math.floor(gameState.time / 60);
+    const seconds = Math.floor(gameState.time % 60);
+    document.getElementById("timeDisplay").textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+    // Update fuel bar
+    const fuelPercent = (gameState.fuel / gameState.maxFuel) * 100;
+    document.getElementById("fuelBar").style.width = `${Math.max(0, fuelPercent)}%`;
+
+    // Update lives display
+    const lifeIcons = document.querySelectorAll(".life-icon");
+    lifeIcons.forEach((icon, index) => {
+        if (index < gameState.lives) {
+            icon.classList.remove("lost");
+        } else {
+            icon.classList.add("lost");
+        }
+    });
+}
+
+function consume_fuel(dt) {
+    if (gameState.fuel <= 0) return false;
+
+    let fuelUsed = 0;
+
+    // Consume fuel for vertical thrust
+    if (arrowKeys.up) {
+        fuelUsed += gameState.fuelConsumptionRate * dt;
+    }
+
+    // Consume fuel for horizontal thrust (only when airborne)
+    if (!taxiPhysics.onGround && (arrowKeys.left || arrowKeys.right)) {
+        fuelUsed += gameState.horizontalFuelRate * dt;
+    }
+
+    gameState.fuel = Math.max(0, gameState.fuel - fuelUsed);
+    return gameState.fuel > 0;
+}
+
+function can_use_thrust() {
+    return gameState.fuel > 0;
+}
+
 // Arrow key input state
 const arrowKeys = {
     up: false,
@@ -193,6 +252,10 @@ function register_taxi_input() {
 function update_taxi(dt) {
     if (!scene.taxi) return;
 
+    // Consume fuel and check if thrust is available
+    consume_fuel(dt);
+    const hasFuel = can_use_thrust();
+
     // Get current taxi position from the transformation matrix
     const currentX = scene.taxi.local[12];
     const currentY = scene.taxi.local[13];
@@ -200,8 +263,8 @@ function update_taxi(dt) {
     // Reset horizontal acceleration
     taxiPhysics.acceleration.x = 0;
 
-    // Horizontal controls (left/right arrow keys) - ONLY when airborne
-    if (!taxiPhysics.onGround) {
+    // Horizontal controls (left/right arrow keys) - ONLY when airborne and has fuel
+    if (!taxiPhysics.onGround && hasFuel) {
         if (arrowKeys.left) {
             taxiPhysics.acceleration.x = -taxiPhysics.horizontalControl;
         }
@@ -210,8 +273,8 @@ function update_taxi(dt) {
         }
     }
 
-    // Vertical controls (up arrow = thrust, counteracts gravity)
-    if (arrowKeys.up) {
+    // Vertical controls (up arrow = thrust, counteracts gravity) - only if has fuel
+    if (arrowKeys.up && hasFuel) {
         taxiPhysics.acceleration.y = taxiPhysics.thrustPower - taxiPhysics.gravity;
     } else {
         taxiPhysics.acceleration.y = -taxiPhysics.gravity;
@@ -306,17 +369,17 @@ function update_taxi(dt) {
         taxiPhysics.facingRight = true;
     }
 
-    // Control flame visibility using scale (0 = hidden, 1 = visible)
+    // Control flame visibility using scale (0 = hidden, 1 = visible) - only show if has fuel
     if (scene.taxi.thrustFlame) {
-        const thrustScale = arrowKeys.up ? 1.0 : 0.0;
+        const thrustScale = (arrowKeys.up && hasFuel) ? 1.0 : 0.0;
         scene.taxi.thrustFlame.dynamic = mat4Scale(mat4Identity(), [0.4 * thrustScale, 0.5 * thrustScale, 0.3 * thrustScale]);
     }
     if (scene.taxi.leftFlame) {
-        const leftScale = (arrowKeys.right && !taxiPhysics.onGround) ? 1.0 : 0.0;
+        const leftScale = (arrowKeys.right && !taxiPhysics.onGround && hasFuel) ? 1.0 : 0.0;
         scene.taxi.leftFlame.dynamic = mat4Scale(mat4Identity(), [0.4 * leftScale, 0.5 * leftScale, 0.3 * leftScale]);
     }
     if (scene.taxi.rightFlame) {
-        const rightScale = (arrowKeys.left && !taxiPhysics.onGround) ? 1.0 : 0.0;
+        const rightScale = (arrowKeys.left && !taxiPhysics.onGround && hasFuel) ? 1.0 : 0.0;
         scene.taxi.rightFlame.dynamic = mat4Scale(mat4Identity(), [0.4 * rightScale, 0.5 * rightScale, 0.3 * rightScale]);
     }
 }
@@ -329,9 +392,15 @@ function render(now) {
     const elapsed = (now - startTime) / 1000.0;
     lastTime = now;
 
+    // Update game time
+    gameState.time = elapsed;
+
     update_camera(dt);
     update_taxi(dt);
     scene_builder.update_lights();
+
+    // Update UI
+    update_ui();
 
     // Final update pass for rendering
     const stack = [];

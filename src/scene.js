@@ -33,7 +33,7 @@ function create_scene(gl, program, uniforms) {
         const taxiRoot = create_model_node(
             {x: -6.0, y: 3.5, z: 0.0},
             {x: 0.0, y: 0.0, z: 0.0},
-            {x: 1.0, y: 1.0, z: 1.0},
+            {x: 1, y: 1, z: 1},
             null,
             null,
             uniforms,

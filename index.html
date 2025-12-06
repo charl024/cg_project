@@ -84,7 +84,86 @@
     background-color: #555;
   }
 
-  
+  /* Space Taxi UI Overlay */
+  #gameUI {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 1000px;
+    height: 60px;
+    background: linear-gradient(to bottom, #8B7355 0%, #6B5345 100%);
+    border: 3px solid #5D8A3A;
+    border-bottom: none;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    box-sizing: border-box;
+    color: #FFF;
+    text-shadow: 2px 2px 0px #000;
+    z-index: 100;
+  }
+
+  .ui-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+  }
+
+  .ui-label {
+    color: #FFD700;
+  }
+
+  .ui-value {
+    color: #FFF;
+    min-width: 60px;
+  }
+
+  .fuel-gauge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .fuel-bar-container {
+    width: 150px;
+    height: 20px;
+    background: #2a2a2a;
+    border: 2px solid #555;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .fuel-bar {
+    height: 100%;
+    background: linear-gradient(to right, #ff0000 0%, #ffff00 50%, #00ff00 100%);
+    transition: width 0.3s ease;
+    width: 100%;
+  }
+
+  .lives-display {
+    display: flex;
+    gap: 5px;
+  }
+
+  .life-icon {
+    width: 20px;
+    height: 20px;
+    background: #FFD700;
+    border-radius: 50%;
+    border: 2px solid #FFF;
+  }
+
+  .life-icon.lost {
+    background: #333;
+    border-color: #555;
+  }
+
+
 </style>
 </head>
 
@@ -103,7 +182,40 @@
 
   <div class="mainContent">
     <div class="canvasContainer">
-      <canvas id="glcanvas" width="1000" height="600"></canvas>
+      <div style="position: relative;">
+        <canvas id="glcanvas" width="1000" height="600"></canvas>
+
+        <!-- Space Taxi Game UI Overlay -->
+        <div id="gameUI">
+          <div class="ui-section">
+            <span class="ui-label">$</span>
+            <span class="ui-value" id="moneyDisplay">0.00</span>
+          </div>
+
+          <div class="ui-section">
+            <div class="lives-display" id="livesDisplay">
+              <div class="life-icon"></div>
+              <div class="life-icon"></div>
+              <div class="life-icon"></div>
+              <div class="life-icon"></div>
+              <div class="life-icon"></div>
+            </div>
+          </div>
+
+          <div class="ui-section fuel-gauge">
+            <span style="color: #ff6666;">E</span>
+            <div class="fuel-bar-container">
+              <div class="fuel-bar" id="fuelBar"></div>
+            </div>
+            <span style="color: #66ff66;">F</span>
+          </div>
+
+          <div class="ui-section">
+            <span class="ui-label">TIME</span>
+            <span class="ui-value" id="timeDisplay">0:00</span>
+          </div>
+        </div>
+      </div>
 
       <div class="sliderColumn">
         <!-- <div class="sliderRow">
