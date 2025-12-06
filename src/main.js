@@ -60,8 +60,8 @@ const global_uniforms = {
 // Camera data - positioned for side-scrolling view
 const camera = {
     rotX: 0.0,
-    rotY: 0.0,
-    pos: { x: 0, y: 0, z: -25 },
+    rotY: 0.7,
+    pos: { x: 0, y: -20, z: -25 },
     targetZ: -25,
     keys: {},
     mouseDown: false,
@@ -82,8 +82,8 @@ function register_input() {
         if (!camera.mouseDown) return;
         const dx = e.clientX - camera.lastX;
         const dy = e.clientY - camera.lastY;
-        camera.rotY += dx * 0.01;
-        camera.rotX += dy * 0.01;
+        camera.rotY += dy * 0.01;
+        camera.rotX += dx * 0.01;
         camera.lastX = e.clientX;
         camera.lastY = e.clientY;
     });
@@ -107,10 +107,10 @@ function update_camera(dt) {
 }
 
 function compute_view_matrix() {
-    const cx = Math.cos(camera.rotY);
-    const sx = Math.sin(camera.rotY);
-    const cy = Math.cos(camera.rotX);
-    const sy = Math.sin(camera.rotX);
+    const cx = Math.cos(camera.rotX);
+    const sx = Math.sin(camera.rotX);
+    const cy = Math.cos(camera.rotY);
+    const sy = Math.sin(camera.rotY);
 
     const rotXMat = [1, 0, 0, 0, 0, cy, sy, 0, 0, -sy, cy, 0, 0, 0, 0, 1];
     const rotYMat = [cx, 0, -sx, 0, 0, 1, 0, 0, sx, 0, cx, 0, 0, 0, 0, 1];

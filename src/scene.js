@@ -276,14 +276,45 @@ function create_scene(gl, program, uniforms) {
         return taxiRoot;
     }
 
+    const MAX_LEVELS = 3;
+    const BASE_WIDTH = 10;
+    const BASE_HEIGHT = 10;
+    const BASE_LENGTH = 10;
+    const MAX_PLATFORMS = 16;
+    const MAX_SPAWN_HEIGHT = 10;
+
     function generate_level() {
-        const BASE_WIDTH = 10;
-        const BASE_HEIGHT = 10;
-        const BASE_LENGTH = 10;
 
-        const MAX_PLATFORMS = 16;
-        const MAX_SPAWN_HEIGHT = 10;
+        let base = null;
 
+        let rand_level_id = Math.ceil(Math.random() * MAX_LEVELS);
+
+        console.log(rand_level_id);
+
+        switch (rand_level_id) {
+            case 1:
+                base = generate_floating_platform_level();
+                break;
+
+            case 2:
+                base = generate_tall_towers_level();
+                break;
+
+            case 3:
+                base = generate_hilly_rough_level();
+                break;
+        
+            default:
+                base = generate_hilly_rough_level();
+                break;
+        }
+
+        return base;
+
+        
+    }
+
+    function generate_tall_towers_level() {
         let bounds = {
             xmin: -BASE_WIDTH + 2,
             xmax: BASE_WIDTH - 2,
@@ -311,7 +342,7 @@ function create_scene(gl, program, uniforms) {
 
         for (let point of points) {
 
-            let height = Math.random() * BASE_HEIGHT;
+            let height = Math.random() * MAX_SPAWN_HEIGHT;
 
              let platform = create_model_node(
                 {x: point.x, y: height, z: point.z},
@@ -327,59 +358,108 @@ function create_scene(gl, program, uniforms) {
             add_children(base, platform);
         }
 
+        return base;
+    }
+
+    function generate_hilly_rough_level() {
+        const base = create_model_node(
+            {x: 0.0, y: -5.0, z: 0.0},
+            {x: 0.0, y: 0.0, z: 0.0},
+            {x: BASE_WIDTH, y: 1.0, z: BASE_LENGTH},
+            null,
+            shapes.cube,
+            uniforms,
+            ground_material,
+            null
+        );
+
+        let max_hill_height = 10;
+        let grid_width = 20;
+        let grid_length = 20;
+        let cell_width = (2 * BASE_WIDTH) / grid_width;
+        let cell_length = (2 * BASE_LENGTH) / grid_length;
+
+        let freq = 0.2;
+
+        for (let z = 0; z < grid_length; z++) {
+            for (let x = 0; x < grid_width; x++) {
+
+                // perlin noise sample
+                let n = perlin_noise(x * freq, z * freq);
+                n += 1.0;
+                n /= 2.0;
+
+                let y = Math.round(n * max_hill_height);
+
+                let px = -BASE_WIDTH  + x * cell_width  + cell_width / 2;
+                let pz = -BASE_LENGTH + z * cell_length + cell_length / 2;
+
+                let ph = y / 2 - 4.8;
+
+                let hill = create_model_node(
+                    {x: px, y: ph, z: pz},
+                    {x: 0.0, y: 0.0, z: 0.0},
+                    {x: cell_width, y: y, z: cell_length},
+                    null,
+                    shapes.cube,
+                    uniforms,
+                    candy_material,
+                    null
+                );
+
+                add_children(base, hill);
+            }
+        }
+
+        return base;
+    }
+
+    function generate_floating_platform_level() {
+        let bounds = {
+            xmin: -BASE_WIDTH + 2,
+            xmax: BASE_WIDTH - 2,
+            ymin: 5,
+            ymax: BASE_HEIGHT,
+            zmin: -BASE_LENGTH + 2,
+            zmax: BASE_LENGTH - 2
+        };
+
+        const base = create_model_node(
+            {x: 0.0, y: -5.0, z: 0.0},
+            {x: 0.0, y: 0.0, z: 0.0},
+            {x: BASE_WIDTH, y: 1.0, z: BASE_LENGTH},
+            null,
+            shapes.cube,
+            uniforms,
+            ground_material,
+            null
+        );
 
 
-        // for (let i = 0; i < MAX_PLATFORMS; i++) {
+        let points = get_spaced_points(bounds, 6, 50, MAX_PLATFORMS, true);
+        
+        for (let point of points) {
 
-        //     let rand_y = Math.random() * MAX_SPAWN_HEIGHT
-        //     let rand_x = Math.random() * BASE_WIDTH * 2 - BASE_WIDTH;
-        //     let rand_z = Math.random() * BASE_LENGTH * 2 - BASE_LENGTH;
+            let height = Math.random() * MAX_SPAWN_HEIGHT;
 
-        //     let platform = create_model_node(
-        //         {x: rand_x, y: rand_y, z: rand_z},
-        //         {x: 0.0, y: 0.0, z: 0.0},
-        //         {x: 1.0, y: 0.1, z: 1.0},
-        //         null,
-        //         shapes.cube,
-        //         uniforms,
-        //         metal_red_material,
-        //         null
-        //     );
+             let platform = create_model_node(
+                {x: point.x, y: height, z: point.z},
+                {x: 0.0, y: 0.0, z: 0.0},
+                {x: 1.0, y: 0.2, z: 1.0},
+                null,
+                shapes.cube,
+                uniforms,
+                metal_red_material,
+                null
+            );
 
-        //     add_children(base, platform);
-        // }
+            add_children(base, platform);
+        }
 
         return base;
     }
 
     function build_model() {
-        // const ground = create_model_node(
-        //     {x: 0.0, y: -5.0, z: 0.0},
-        //     {x: 0.0, y: 0.0, z: 0.0},
-        //     {x: 10.0, y: 1.0, z: 10.0},
-        //     null,
-        //     shapes.cube,
-        //     uniforms,
-        //     ground_material,
-        //     null
-        // );
-
-        // const body = create_model_node(
-        //     {x: 0.0, y: 3.0, z: 0.0},
-        //     {x: 0.0, y: 0.0, z: 0.0},
-        //     {x: 1.0, y: 1.0, z: 1.0},
-        //     (mtm) => {
-        //         let mat = mat4Identity();
-        //         mat = mat4Translate(mat, [0.0, 0.08*Math.sin(Date.now()/100), 0.0]);
-        //         return multiplyMat4(mtm, mat);
-        //     },
-        //     shapes.cube,
-        //     uniforms,
-        //     metal_orange_material,
-        //     textures.rusty_metal1
-        // );
-
-        // add_children(ground, body);
 
         let base = generate_level();
 
