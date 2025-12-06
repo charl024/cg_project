@@ -57,76 +57,105 @@ const global_uniforms = {
     uTime: gl.getUniformLocation(program, "uTime"),
 };
 
-// Camera data - positioned for side-scrolling view
+// Camera data - 3D third-person camera rigidly attached to taxi
 const camera = {
-    rotX: 0.0,
-    rotY: 0.7,
-    pos: { x: 0, y: -20, z: -25 },
-    targetZ: -25,
-    keys: {},
-    mouseDown: false,
-    lastX: 0,
-    lastY: 0,
+    // Camera position in world space
+    pos: { x: 0, y: 10, z: -15 },
+    // Look-at target (where camera points)
+    lookAt: { x: 0, y: 5, z: 0 },
+    // Camera offset from taxi (in taxi's local space)
+    offsetBehind: 18,  // Distance behind taxi
+    offsetUp: 8,       // Height above taxi
+    lookAhead: 12,     // How far ahead of taxi to look
+    // Zoom control
+    zoomLevel: 1.0,
+    targetZoom: 1.0,
 };
 
 function register_input() {
-    canvas.addEventListener("mousedown", (e) => {
-        camera.mouseDown = true;
-        camera.lastX = e.clientX;
-        camera.lastY = e.clientY;
-    });
-
-    canvas.addEventListener("mouseup", () => (camera.mouseDown = false));
-
-    canvas.addEventListener("mousemove", (e) => {
-        if (!camera.mouseDown) return;
-        const dx = e.clientX - camera.lastX;
-        const dy = e.clientY - camera.lastY;
-        camera.rotY += dy * 0.01;
-        camera.rotX += dx * 0.01;
-        camera.lastX = e.clientX;
-        camera.lastY = e.clientY;
-    });
-
-    document.addEventListener("keydown", (e) => (camera.keys[e.key] = true));
-    document.addEventListener("keyup", (e) => (camera.keys[e.key] = false));
-
+    // Zoom with mouse wheel
     addEventListener("wheel", (e) => {
-        camera.targetZ += -1 * e.deltaY * 0.01;
+        camera.targetZoom = Math.max(0.5, Math.min(2.0, camera.targetZoom + e.deltaY * 0.001));
     });
 }
 
 function update_camera(dt) {
-    const speed = 4.0;
-    if (camera.keys["w"]) camera.pos.y -= speed * dt;
-    if (camera.keys["s"]) camera.pos.y += speed * dt;
-    if (camera.keys["a"]) camera.pos.x += speed * dt;
-    if (camera.keys["d"]) camera.pos.x -= speed * dt;
+    // Use taxiPhysics.position directly (more reliable than reading from matrix)
+    const taxiX = taxiPhysics.position.x;
+    const taxiY = taxiPhysics.position.y;
+    const taxiZ = taxiPhysics.position.z;
+    const taxiHeading = taxiPhysics.heading;
 
-    camera.pos.z += (camera.targetZ - camera.pos.z) * 5 * dt;
+    // Smooth zoom only
+    camera.zoomLevel += (camera.targetZoom - camera.zoomLevel) * 3.0 * dt;
+
+    // Calculate forward direction from taxi heading
+    const forwardX = Math.sin(taxiHeading);
+    const forwardZ = Math.cos(taxiHeading);
+
+    // Calculate camera position: fixed behind and above the taxi
+    const distance = camera.offsetBehind * camera.zoomLevel;
+    const height = camera.offsetUp * camera.zoomLevel;
+
+    // Camera is rigidly attached BEHIND the taxi
+    camera.pos.x = taxiX - forwardX * distance;
+    camera.pos.z = taxiZ - forwardZ * distance;
+    camera.pos.y = taxiY + height;
+
+    // Camera looks AHEAD of the taxi (fixed, no interpolation)
+    camera.lookAt.x = taxiX + forwardX * camera.lookAhead;
+    camera.lookAt.z = taxiZ + forwardZ * camera.lookAhead;
+    camera.lookAt.y = taxiY;
 }
 
 function compute_view_matrix() {
-    const cx = Math.cos(camera.rotX);
-    const sx = Math.sin(camera.rotX);
-    const cy = Math.cos(camera.rotY);
-    const sy = Math.sin(camera.rotY);
+    // Standard OpenGL lookAt matrix
+    const eyeX = camera.pos.x;
+    const eyeY = camera.pos.y;
+    const eyeZ = camera.pos.z;
+    const targetX = camera.lookAt.x;
+    const targetY = camera.lookAt.y;
+    const targetZ = camera.lookAt.z;
 
-    const rotXMat = [1, 0, 0, 0, 0, cy, sy, 0, 0, -sy, cy, 0, 0, 0, 0, 1];
-    const rotYMat = [cx, 0, -sx, 0, 0, 1, 0, 0, sx, 0, cx, 0, 0, 0, 0, 1];
-    const rotation = multiplyMat4(rotYMat, rotXMat);
+    // Z axis = normalize(eye - target) - points away from target
+    let zx = eyeX - targetX;
+    let zy = eyeY - targetY;
+    let zz = eyeZ - targetZ;
+    let zLen = Math.sqrt(zx * zx + zy * zy + zz * zz);
+    if (zLen > 0.0001) { zx /= zLen; zy /= zLen; zz /= zLen; }
 
-    let view = mat4Identity();
-    view = multiplyMat4(view, rotation);
-    view = mat4Translate(view, [camera.pos.x, camera.pos.y, camera.pos.z]);
-    return view;
+    // X axis = normalize(cross(up, z))
+    const upX = 0, upY = 1, upZ = 0;
+    let xx = upY * zz - upZ * zy;
+    let xy = upZ * zx - upX * zz;
+    let xz = upX * zy - upY * zx;
+    let xLen = Math.sqrt(xx * xx + xy * xy + xz * xz);
+    if (xLen > 0.0001) { xx /= xLen; xy /= xLen; xz /= xLen; }
+
+    // Y axis = cross(z, x)
+    const yx = zy * xz - zz * xy;
+    const yy = zz * xx - zx * xz;
+    const yz = zx * xy - zy * xx;
+
+    // Translation
+    const tx = -(xx * eyeX + xy * eyeY + xz * eyeZ);
+    const ty = -(yx * eyeX + yy * eyeY + yz * eyeZ);
+    const tz = -(zx * eyeX + zy * eyeY + zz * eyeZ);
+
+    // Column-major order
+    return new Float32Array([
+        xx, yx, zx, 0,
+        xy, yy, zy, 0,
+        xz, yz, zz, 0,
+        tx, ty, tz, 1
+    ]);
 }
 
 const projection = perspective(
     Math.PI / 4,
     canvas.width / canvas.height,
     0.1,
-    100
+    200  // Increased far plane for larger play area
 );
 
 // Scene setup lives in scene.js
@@ -153,17 +182,27 @@ function set_global_uniforms(view, elapsed) {
     gl.uniform1f(global_uniforms.uTime, elapsed);
 }
 
-// Taxi physics state
+// Taxi physics state - 3D movement
 const taxiPhysics = {
-    velocity: { x: 0, y: 0 },
-    acceleration: { x: 0, y: 0 },
-    thrustPower: 15.0,
-    horizontalControl: 8.0,
+    // Position (stored separately for reliability)
+    position: { x: 0, y: 15, z: -30 },  // Will be synced with taxi spawn position
+    // 3D velocity
+    velocity: { x: 0, y: 0, z: 0 },
+    // Rotation
+    heading: 0,           // Current heading (Y rotation) in radians
+    turnSpeed: 2.5,       // Radians per second for A/D rotation
+    // Movement parameters
+    thrustPower: 18.0,    // Vertical thrust
+    moveAccel: 12.0,      // Forward/backward acceleration
     gravity: 9.8,
-    maxVelocityY: 10.0,
-    maxVelocityX: 8.0,
+    // Velocity limits
+    maxVelocityY: 12.0,
+    maxVelocityXZ: 15.0,  // Max horizontal speed
+    // State
     onGround: false,
-    facingRight: true  // Track which direction taxi is facing
+    // Drag coefficients
+    airDrag: 0.98,
+    groundDrag: 0.9,
 };
 
 // Game state
@@ -174,7 +213,9 @@ const gameState = {
     money: 0.00,
     time: 0.0,    // in seconds
     fuelConsumptionRate: 5.0,  // fuel per second when thrusting
-    horizontalFuelRate: 3.0    // fuel per second when using horizontal thrust
+    horizontalFuelRate: 3.0,   // fuel per second when using horizontal thrust
+    refuelRate: 25.0,          // fuel per second when on refuel station
+    isRefueling: false         // track if currently on refuel station
 };
 
 // UI update functions
@@ -189,7 +230,15 @@ function update_ui() {
 
     // Update fuel bar
     const fuelPercent = (gameState.fuel / gameState.maxFuel) * 100;
-    document.getElementById("fuelBar").style.width = `${Math.max(0, fuelPercent)}%`;
+    const fuelBar = document.getElementById("fuelBar");
+    fuelBar.style.width = `${Math.max(0, fuelPercent)}%`;
+
+    // Change fuel bar color when refueling
+    if (gameState.isRefueling) {
+        fuelBar.style.background = "linear-gradient(90deg, #00aaff, #00ffff)";  // Blue when refueling
+    } else {
+        fuelBar.style.background = "linear-gradient(90deg, #ff6600, #ffcc00)";  // Orange normally
+    }
 
     // Update lives display
     const lifeIcons = document.querySelectorAll(".life-icon");
@@ -207,13 +256,13 @@ function consume_fuel(dt) {
 
     let fuelUsed = 0;
 
-    // Consume fuel for vertical thrust
-    if (arrowKeys.up) {
+    // Consume fuel for vertical thrust (Space/Shift)
+    if (inputKeys.thrust) {
         fuelUsed += gameState.fuelConsumptionRate * dt;
     }
 
-    // Consume fuel for horizontal thrust (only when airborne)
-    if (!taxiPhysics.onGround && (arrowKeys.left || arrowKeys.right)) {
+    // Consume fuel for forward/backward movement
+    if (inputKeys.forward || inputKeys.backward) {
         fuelUsed += gameState.horizontalFuelRate * dt;
     }
 
@@ -225,28 +274,62 @@ function can_use_thrust() {
     return gameState.fuel > 0;
 }
 
-// Arrow key input state
-const arrowKeys = {
-    up: false,
-    down: false,
-    left: false,
-    right: false
+// Input state for 3D movement
+const inputKeys = {
+    forward: false,   // W or ArrowUp
+    backward: false,  // S or ArrowDown
+    left: false,      // A or ArrowLeft
+    right: false,     // D or ArrowRight
+    thrust: false,    // Space or Shift (vertical thrust)
+    reset: false,     // R to reset level
 };
 
 function register_taxi_input() {
     document.addEventListener("keydown", (e) => {
-        if (e.key === "ArrowUp") arrowKeys.up = true;
-        if (e.key === "ArrowDown") arrowKeys.down = true;
-        if (e.key === "ArrowLeft") arrowKeys.left = true;
-        if (e.key === "ArrowRight") arrowKeys.right = true;
+        if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") inputKeys.forward = true;
+        if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") inputKeys.backward = true;
+        if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") inputKeys.left = true;
+        if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") inputKeys.right = true;
+        if (e.key === " " || e.key === "Shift") {
+            inputKeys.thrust = true;
+            e.preventDefault();  // Prevent page scroll on space
+        }
+        if (e.key === "r" || e.key === "R") {
+            reset_taxi();
+        }
     });
 
     document.addEventListener("keyup", (e) => {
-        if (e.key === "ArrowUp") arrowKeys.up = false;
-        if (e.key === "ArrowDown") arrowKeys.down = false;
-        if (e.key === "ArrowLeft") arrowKeys.left = false;
-        if (e.key === "ArrowRight") arrowKeys.right = false;
+        if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") inputKeys.forward = false;
+        if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") inputKeys.backward = false;
+        if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") inputKeys.left = false;
+        if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") inputKeys.right = false;
+        if (e.key === " " || e.key === "Shift") inputKeys.thrust = false;
     });
+}
+
+// Reset taxi position and lose a life
+function reset_taxi() {
+    if (gameState.lives <= 0) return;  // No lives left
+
+    // Lose a life
+    gameState.lives--;
+
+    // Reset taxi position to spawn point
+    taxiPhysics.position.x = 0;
+    taxiPhysics.position.y = 15;
+    taxiPhysics.position.z = -30;
+
+    // Reset velocity
+    taxiPhysics.velocity.x = 0;
+    taxiPhysics.velocity.y = 0;
+    taxiPhysics.velocity.z = 0;
+
+    // Reset heading
+    taxiPhysics.heading = 0;
+
+    // Reset fuel
+    gameState.fuel = gameState.maxFuel;
 }
 
 function update_taxi(dt) {
@@ -256,51 +339,80 @@ function update_taxi(dt) {
     consume_fuel(dt);
     const hasFuel = can_use_thrust();
 
-    // Get current taxi position from the transformation matrix
-    const currentX = scene.taxi.local[12];
-    const currentY = scene.taxi.local[13];
+    // Use stored position
+    let currentX = taxiPhysics.position.x;
+    let currentY = taxiPhysics.position.y;
+    let currentZ = taxiPhysics.position.z;
 
-    // Reset horizontal acceleration
-    taxiPhysics.acceleration.x = 0;
-
-    // Horizontal controls (left/right arrow keys) - ONLY when airborne and has fuel
-    if (!taxiPhysics.onGround && hasFuel) {
-        if (arrowKeys.left) {
-            taxiPhysics.acceleration.x = -taxiPhysics.horizontalControl;
-        }
-        if (arrowKeys.right) {
-            taxiPhysics.acceleration.x = taxiPhysics.horizontalControl;
-        }
+    // A/D rotate the taxi
+    if (inputKeys.left) {
+        taxiPhysics.heading += taxiPhysics.turnSpeed * dt;
+    }
+    if (inputKeys.right) {
+        taxiPhysics.heading -= taxiPhysics.turnSpeed * dt;
     }
 
-    // Vertical controls (up arrow = thrust, counteracts gravity) - only if has fuel
-    if (arrowKeys.up && hasFuel) {
-        taxiPhysics.acceleration.y = taxiPhysics.thrustPower - taxiPhysics.gravity;
-    } else {
-        taxiPhysics.acceleration.y = -taxiPhysics.gravity;
+    // Keep heading in [-PI, PI]
+    while (taxiPhysics.heading > Math.PI) taxiPhysics.heading -= 2 * Math.PI;
+    while (taxiPhysics.heading < -Math.PI) taxiPhysics.heading += 2 * Math.PI;
+
+    // Calculate forward direction from heading
+    const forwardX = Math.sin(taxiPhysics.heading);
+    const forwardZ = Math.cos(taxiPhysics.heading);
+
+    // W/S move forward/backward in facing direction
+    let moveInput = 0;
+    if (inputKeys.forward) moveInput += 1;
+    if (inputKeys.backward) moveInput -= 1;
+
+    // Apply acceleration in facing direction
+    let accelX = 0;
+    let accelZ = 0;
+
+    if (moveInput !== 0 && hasFuel) {
+        accelX = forwardX * moveInput * taxiPhysics.moveAccel;
+        accelZ = forwardZ * moveInput * taxiPhysics.moveAccel;
     }
 
-    // Update velocity
-    taxiPhysics.velocity.x += taxiPhysics.acceleration.x * dt;
-    taxiPhysics.velocity.y += taxiPhysics.acceleration.y * dt;
-
-    // Apply air drag to horizontal movement when airborne
-    if (!taxiPhysics.onGround) {
-        taxiPhysics.velocity.x *= 0.98;
-    } else {
-        // Stop horizontal movement when on ground
-        taxiPhysics.velocity.x = 0;
+    // Vertical thrust (Space/Shift) - only if has fuel
+    let accelY = -taxiPhysics.gravity;
+    if (inputKeys.thrust && hasFuel) {
+        accelY = taxiPhysics.thrustPower - taxiPhysics.gravity;
     }
 
-    // Clamp velocities
-    taxiPhysics.velocity.x = Math.max(-taxiPhysics.maxVelocityX, Math.min(taxiPhysics.maxVelocityX, taxiPhysics.velocity.x));
+    // Update velocities
+    taxiPhysics.velocity.x += accelX * dt;
+    taxiPhysics.velocity.y += accelY * dt;
+    taxiPhysics.velocity.z += accelZ * dt;
+
+    // Apply drag
+    const drag = taxiPhysics.onGround ? taxiPhysics.groundDrag : taxiPhysics.airDrag;
+    taxiPhysics.velocity.x *= drag;
+    taxiPhysics.velocity.z *= drag;
+
+    // Clamp horizontal velocity
+    const horizSpeed = Math.sqrt(taxiPhysics.velocity.x ** 2 + taxiPhysics.velocity.z ** 2);
+    if (horizSpeed > taxiPhysics.maxVelocityXZ) {
+        const scale = taxiPhysics.maxVelocityXZ / horizSpeed;
+        taxiPhysics.velocity.x *= scale;
+        taxiPhysics.velocity.z *= scale;
+    }
+
+    // Clamp vertical velocity
     taxiPhysics.velocity.y = Math.max(-taxiPhysics.maxVelocityY, Math.min(taxiPhysics.maxVelocityY, taxiPhysics.velocity.y));
 
-    // Update taxi position temporarily to check for collisions
-    const flipRotation = taxiPhysics.facingRight ? 0 : Math.PI;
-    let posMatrix = mat4Translate(mat4Identity(), [currentX, currentY, 0]);
-    const rotMatrix = mat4RotateY(mat4Identity(), flipRotation);
-    scene.taxi.local = multiplyMat4(posMatrix, rotMatrix);
+    // Model rotation offset (taxi model faces +X, we want it to face forward direction)
+    const modelRotOffset = Math.PI / 2;
+
+    // Helper function to apply taxi transform
+    function applyTaxiTransform(x, y, z) {
+        const posMatrix = mat4Translate(mat4Identity(), [x, y, z]);
+        const rotMatrix = mat4RotateY(mat4Identity(), taxiPhysics.heading + modelRotOffset);
+        scene.taxi.local = multiplyMat4(posMatrix, rotMatrix);
+    }
+
+    // Apply current position for initial collision check
+    applyTaxiTransform(currentX, currentY, currentZ);
 
     // Update bounding boxes for collision detection
     let stack = [];
@@ -310,34 +422,37 @@ function update_taxi(dt) {
     let collisions = check_taxi_collisions(scene.taxi, scene.root);
 
     taxiPhysics.onGround = false;
+    gameState.isRefueling = false;
 
     // If currently colliding, check which direction to block
     if (collisions.length > 0) {
         for (let collision of collisions) {
             const taxiCenter = scene.taxi.world_bounding.center;
-            const objCenter = collision.center;
 
             // Check if taxi bottom is near object top (on ground)
             const taxiBottom = taxiCenter[1] - scene.taxi.world_bounding.halfsize[1];
             const objTop = collision.max[1];
 
-            if (Math.abs(taxiBottom - objTop) < 0.2 && taxiPhysics.velocity.y <= 0) {
+            if (Math.abs(taxiBottom - objTop) < 0.3 && taxiPhysics.velocity.y <= 0) {
                 taxiPhysics.onGround = true;
                 taxiPhysics.velocity.y = 0;
+
+                // Check if this is a refuel station
+                if (collision.node && collision.node.isRefuelStation) {
+                    gameState.isRefueling = true;
+                }
             }
         }
     }
 
     // Try moving in Y direction
     let newY = currentY + taxiPhysics.velocity.y * dt;
-    posMatrix = mat4Translate(mat4Identity(), [currentX, newY, 0]);
-    scene.taxi.local = multiplyMat4(posMatrix, rotMatrix);
+    applyTaxiTransform(currentX, newY, currentZ);
     stack = [];
     walk_update(scene.root, stack, mat4Identity());
     collisions = check_taxi_collisions(scene.taxi, scene.root);
 
     if (collisions.length > 0) {
-        // Block vertical movement
         newY = currentY;
         taxiPhysics.velocity.y = 0;
         taxiPhysics.onGround = true;
@@ -345,42 +460,56 @@ function update_taxi(dt) {
 
     // Try moving in X direction
     let newX = currentX + taxiPhysics.velocity.x * dt;
-    posMatrix = mat4Translate(mat4Identity(), [newX, newY, 0]);
-    scene.taxi.local = multiplyMat4(posMatrix, rotMatrix);
+    applyTaxiTransform(newX, newY, currentZ);
     stack = [];
     walk_update(scene.root, stack, mat4Identity());
     collisions = check_taxi_collisions(scene.taxi, scene.root);
 
     if (collisions.length > 0) {
-        // Block horizontal movement
         newX = currentX;
         taxiPhysics.velocity.x = 0;
     }
 
-    // Apply final position
-    posMatrix = mat4Translate(mat4Identity(), [newX, newY, 0]);
-    scene.taxi.local = multiplyMat4(posMatrix, rotMatrix);
+    // Try moving in Z direction
+    let newZ = currentZ + taxiPhysics.velocity.z * dt;
+    applyTaxiTransform(newX, newY, newZ);
+    stack = [];
+    walk_update(scene.root, stack, mat4Identity());
+    collisions = check_taxi_collisions(scene.taxi, scene.root);
 
-    // Update taxi facing direction based on input
-    if (arrowKeys.left && !taxiPhysics.onGround) {
-        taxiPhysics.facingRight = false;
-    }
-    if (arrowKeys.right && !taxiPhysics.onGround) {
-        taxiPhysics.facingRight = true;
+    if (collisions.length > 0) {
+        newZ = currentZ;
+        taxiPhysics.velocity.z = 0;
     }
 
-    // Control flame visibility using scale (0 = hidden, 1 = visible) - only show if has fuel
+    // Update stored position
+    taxiPhysics.position.x = newX;
+    taxiPhysics.position.y = newY;
+    taxiPhysics.position.z = newZ;
+
+    // Apply final transform
+    applyTaxiTransform(newX, newY, newZ);
+
+    // Refuel if on refuel station
+    if (gameState.isRefueling && gameState.fuel < gameState.maxFuel) {
+        gameState.fuel = Math.min(gameState.maxFuel, gameState.fuel + gameState.refuelRate * dt);
+    }
+
+    // Control flame visibility - thrust flame shows when using vertical thrust
     if (scene.taxi.thrustFlame) {
-        const thrustScale = (arrowKeys.up && hasFuel) ? 1.0 : 0.0;
+        const thrustScale = (inputKeys.thrust && hasFuel) ? 1.0 : 0.0;
         scene.taxi.thrustFlame.dynamic = mat4Scale(mat4Identity(), [0.4 * thrustScale, 0.5 * thrustScale, 0.3 * thrustScale]);
     }
+
+    // Rear flame shows when moving forward
     if (scene.taxi.leftFlame) {
-        const leftScale = (arrowKeys.right && !taxiPhysics.onGround && hasFuel) ? 1.0 : 0.0;
-        scene.taxi.leftFlame.dynamic = mat4Scale(mat4Identity(), [0.4 * leftScale, 0.5 * leftScale, 0.3 * leftScale]);
+        const moveScale = (moveInput > 0 && hasFuel) ? 1.0 : 0.0;
+        scene.taxi.leftFlame.dynamic = mat4Scale(mat4Identity(), [0.3 * moveScale, 0.4 * moveScale, 0.25 * moveScale]);
     }
+
+    // Hide right flame (not used in 3D mode)
     if (scene.taxi.rightFlame) {
-        const rightScale = (arrowKeys.left && !taxiPhysics.onGround && hasFuel) ? 1.0 : 0.0;
-        scene.taxi.rightFlame.dynamic = mat4Scale(mat4Identity(), [0.4 * rightScale, 0.5 * rightScale, 0.3 * rightScale]);
+        scene.taxi.rightFlame.dynamic = mat4Scale(mat4Identity(), [0, 0, 0]);
     }
 }
 
@@ -395,8 +524,9 @@ function render(now) {
     // Update game time
     gameState.time = elapsed;
 
-    update_camera(dt);
+    // Update taxi first, then camera uses taxi's new position
     update_taxi(dt);
+    update_camera(dt);
     scene_builder.update_lights();
 
     // Update UI
@@ -417,6 +547,12 @@ function render(now) {
     requestAnimationFrame(render);
 }
 
+// Initialize camera position based on taxi
+function init_camera() {
+    // Camera will be positioned on first update_camera call
+    update_camera(0);
+}
+
 // init function calls
 register_input();
 register_taxi_input();
@@ -424,5 +560,6 @@ register_ui();
 
 const startTime = performance.now();
 window.onload = () => {
+    init_camera();
     requestAnimationFrame(render);
 };

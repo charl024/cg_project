@@ -73,6 +73,14 @@ const metal_red_material = {
     bumpOn: true
 };
 
+const metal_blue_material = {
+    Kd: 0.3,
+    Ks: 0.9,
+    alpha: 500.0,
+    color: colorconvert(0, 100, 255),
+    bumpOn: true
+};
+
 const candy_material = {
     Kd: 0.5,
     Ks: 0.5,
