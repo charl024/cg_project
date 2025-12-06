@@ -189,7 +189,7 @@ const taxiPhysics = {
     velocity: { x: 0, y: 0, z: 0 },
     // Rotation
     heading: 0,           // Current heading (Y rotation) in radians
-    turnSpeed: 2.5,       // Radians per second for A/D rotation
+    turnSpeed: 1.5,       // Radians per second for A/D rotation
     // Movement parameters
     thrustPower: 18.0,    // Vertical thrust
     moveAccel: 12.0,      // Forward/backward acceleration
@@ -211,9 +211,9 @@ const gameState = {
     maxFuel: 100.0,
     money: 0.00,
     time: 0.0,    // in seconds
-    fuelConsumptionRate: 5.0,  // fuel per second when thrusting
-    horizontalFuelRate: 3.0,   // fuel per second when using horizontal thrust
-    refuelRate: 25.0,          // fuel per second when on refuel station
+    fuelConsumptionRate: 4.0,  // fuel per second when thrusting
+    horizontalFuelRate: 2.0,   // fuel per second when using horizontal thrust
+    refuelRate: 33.0,          // fuel per second when on refuel station
     isRefueling: false         // track if currently on refuel station
 };
 
@@ -419,12 +419,12 @@ function update_taxi(dt) {
 
     // Check for collisions with environment
     let collisions = check_taxi_collisions(scene.taxi, scene.root);
-
     taxiPhysics.onGround = false;
     gameState.isRefueling = false;
 
     // If currently colliding, check which direction to block
     if (collisions.length > 0) {
+
         for (let collision of collisions) {
             const taxiCenter = scene.taxi.world_bounding.center;
 
@@ -449,20 +449,20 @@ function update_taxi(dt) {
     applyTaxiTransform(currentX, newY, currentZ);
     stack = [];
     walk_update(scene.root, stack, mat4Identity());
-    collisions = check_taxi_collisions(scene.taxi, scene.root);
+    //collisions = check_taxi_collisions(scene.taxi, scene.root);
 
-    if (collisions.length > 0) {
-        newY = currentY;
-        taxiPhysics.velocity.y = 0;
-        taxiPhysics.onGround = true;
-    }
+    // if (collisions.length > 0) {
+    //     newY = currentY;
+    //     taxiPhysics.velocity.y = 0;
+    //     taxiPhysics.onGround = true;
+    // }
 
     // Try moving in X direction
     let newX = currentX + taxiPhysics.velocity.x * dt;
     applyTaxiTransform(newX, newY, currentZ);
     stack = [];
     walk_update(scene.root, stack, mat4Identity());
-    collisions = check_taxi_collisions(scene.taxi, scene.root);
+    //collisions = check_taxi_collisions(scene.taxi, scene.root);
 
     if (collisions.length > 0) {
         newX = currentX;
@@ -474,7 +474,7 @@ function update_taxi(dt) {
     applyTaxiTransform(newX, newY, newZ);
     stack = [];
     walk_update(scene.root, stack, mat4Identity());
-    collisions = check_taxi_collisions(scene.taxi, scene.root);
+    //collisions = check_taxi_collisions(scene.taxi, scene.root);
 
     if (collisions.length > 0) {
         newZ = currentZ;

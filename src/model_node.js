@@ -211,7 +211,7 @@ function check_taxi_collisions(taxi, root) {
             continue;
         }
 
-        // Only check nodes that have a shape (renderable objects)
+        // Only check nodes that have a shape
         if (node.shape && oriented_bounding_box_intersection(taxi, node)) {
             collisions.push({
                 node: node,
@@ -230,7 +230,7 @@ function check_taxi_collisions(taxi, root) {
         }
     }
 
-    return collisions;
+    return [...collisions];
 }
 
 function is_child_of(node, parent) {
