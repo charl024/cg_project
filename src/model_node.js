@@ -199,4 +199,47 @@ function detect_collisions(root) {
     }
 }
 
+function check_taxi_collisions(taxi, root) {
+    if (!taxi) return [];
+
+    const collisions = [];
+    const nodes = collect_nodes(root, []);
+
+    for (let node of nodes) {
+        // Skip the taxi itself and its children
+        if (node === taxi || is_child_of(node, taxi)) {
+            continue;
+        }
+
+        // Only check nodes that have a shape (renderable objects)
+        if (node.shape && oriented_bounding_box_intersection(taxi, node)) {
+            collisions.push({
+                node: node,
+                center: node.world_bounding.center,
+                min: [
+                    node.world_bounding.center[0] - node.world_bounding.halfsize[0],
+                    node.world_bounding.center[1] - node.world_bounding.halfsize[1],
+                    node.world_bounding.center[2] - node.world_bounding.halfsize[2]
+                ],
+                max: [
+                    node.world_bounding.center[0] + node.world_bounding.halfsize[0],
+                    node.world_bounding.center[1] + node.world_bounding.halfsize[1],
+                    node.world_bounding.center[2] + node.world_bounding.halfsize[2]
+                ]
+            });
+        }
+    }
+
+    return collisions;
+}
+
+function is_child_of(node, parent) {
+    if (!parent.children) return false;
+    for (let child of parent.children) {
+        if (child === node) return true;
+        if (is_child_of(node, child)) return true;
+    }
+    return false;
+}
+
 

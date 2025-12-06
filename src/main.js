@@ -57,12 +57,12 @@ const global_uniforms = {
     uTime: gl.getUniformLocation(program, "uTime"),
 };
 
-// Camera data
+// Camera data - positioned for side-scrolling view
 const camera = {
-    rotX: 0.1,
+    rotX: 0.0,
     rotY: 0.0,
-    pos: { x: 0, y: 0, z: -5 },
-    targetZ: -5,
+    pos: { x: 0, y: 0, z: -25 },
+    targetZ: -25,
     keys: {},
     mouseDown: false,
     lastX: 0,
@@ -141,7 +141,7 @@ function register_ui() {
 }
 
 function set_global_uniforms(view, elapsed) {
-    
+
     gl.uniformMatrix4fv(global_uniforms.uPM, false, projection);
     gl.uniformMatrix4fv(global_uniforms.uMVM, false, view);
     gl.uniform3fv(global_uniforms.uLightPos1, scene.lights.pos1);
@@ -153,6 +153,174 @@ function set_global_uniforms(view, elapsed) {
     gl.uniform1f(global_uniforms.uTime, elapsed);
 }
 
+// Taxi physics state
+const taxiPhysics = {
+    velocity: { x: 0, y: 0 },
+    acceleration: { x: 0, y: 0 },
+    thrustPower: 15.0,
+    horizontalControl: 8.0,
+    gravity: 9.8,
+    maxVelocityY: 10.0,
+    maxVelocityX: 8.0,
+    onGround: false,
+    facingRight: true  // Track which direction taxi is facing
+};
+
+// Arrow key input state
+const arrowKeys = {
+    up: false,
+    down: false,
+    left: false,
+    right: false
+};
+
+function register_taxi_input() {
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowUp") arrowKeys.up = true;
+        if (e.key === "ArrowDown") arrowKeys.down = true;
+        if (e.key === "ArrowLeft") arrowKeys.left = true;
+        if (e.key === "ArrowRight") arrowKeys.right = true;
+    });
+
+    document.addEventListener("keyup", (e) => {
+        if (e.key === "ArrowUp") arrowKeys.up = false;
+        if (e.key === "ArrowDown") arrowKeys.down = false;
+        if (e.key === "ArrowLeft") arrowKeys.left = false;
+        if (e.key === "ArrowRight") arrowKeys.right = false;
+    });
+}
+
+function update_taxi(dt) {
+    if (!scene.taxi) return;
+
+    // Get current taxi position from the transformation matrix
+    const currentX = scene.taxi.local[12];
+    const currentY = scene.taxi.local[13];
+
+    // Reset horizontal acceleration
+    taxiPhysics.acceleration.x = 0;
+
+    // Horizontal controls (left/right arrow keys) - ONLY when airborne
+    if (!taxiPhysics.onGround) {
+        if (arrowKeys.left) {
+            taxiPhysics.acceleration.x = -taxiPhysics.horizontalControl;
+        }
+        if (arrowKeys.right) {
+            taxiPhysics.acceleration.x = taxiPhysics.horizontalControl;
+        }
+    }
+
+    // Vertical controls (up arrow = thrust, counteracts gravity)
+    if (arrowKeys.up) {
+        taxiPhysics.acceleration.y = taxiPhysics.thrustPower - taxiPhysics.gravity;
+    } else {
+        taxiPhysics.acceleration.y = -taxiPhysics.gravity;
+    }
+
+    // Update velocity
+    taxiPhysics.velocity.x += taxiPhysics.acceleration.x * dt;
+    taxiPhysics.velocity.y += taxiPhysics.acceleration.y * dt;
+
+    // Apply air drag to horizontal movement when airborne
+    if (!taxiPhysics.onGround) {
+        taxiPhysics.velocity.x *= 0.98;
+    } else {
+        // Stop horizontal movement when on ground
+        taxiPhysics.velocity.x = 0;
+    }
+
+    // Clamp velocities
+    taxiPhysics.velocity.x = Math.max(-taxiPhysics.maxVelocityX, Math.min(taxiPhysics.maxVelocityX, taxiPhysics.velocity.x));
+    taxiPhysics.velocity.y = Math.max(-taxiPhysics.maxVelocityY, Math.min(taxiPhysics.maxVelocityY, taxiPhysics.velocity.y));
+
+    // Update taxi position temporarily to check for collisions
+    const flipRotation = taxiPhysics.facingRight ? 0 : Math.PI;
+    let posMatrix = mat4Translate(mat4Identity(), [currentX, currentY, 0]);
+    const rotMatrix = mat4RotateY(mat4Identity(), flipRotation);
+    scene.taxi.local = multiplyMat4(posMatrix, rotMatrix);
+
+    // Update bounding boxes for collision detection
+    let stack = [];
+    walk_update(scene.root, stack, mat4Identity());
+
+    // Check for collisions with environment
+    let collisions = check_taxi_collisions(scene.taxi, scene.root);
+
+    taxiPhysics.onGround = false;
+
+    // If currently colliding, check which direction to block
+    if (collisions.length > 0) {
+        for (let collision of collisions) {
+            const taxiCenter = scene.taxi.world_bounding.center;
+            const objCenter = collision.center;
+
+            // Check if taxi bottom is near object top (on ground)
+            const taxiBottom = taxiCenter[1] - scene.taxi.world_bounding.halfsize[1];
+            const objTop = collision.max[1];
+
+            if (Math.abs(taxiBottom - objTop) < 0.2 && taxiPhysics.velocity.y <= 0) {
+                taxiPhysics.onGround = true;
+                taxiPhysics.velocity.y = 0;
+            }
+        }
+    }
+
+    // Try moving in Y direction
+    let newY = currentY + taxiPhysics.velocity.y * dt;
+    posMatrix = mat4Translate(mat4Identity(), [currentX, newY, 0]);
+    scene.taxi.local = multiplyMat4(posMatrix, rotMatrix);
+    stack = [];
+    walk_update(scene.root, stack, mat4Identity());
+    collisions = check_taxi_collisions(scene.taxi, scene.root);
+
+    if (collisions.length > 0) {
+        // Block vertical movement
+        newY = currentY;
+        taxiPhysics.velocity.y = 0;
+        taxiPhysics.onGround = true;
+    }
+
+    // Try moving in X direction
+    let newX = currentX + taxiPhysics.velocity.x * dt;
+    posMatrix = mat4Translate(mat4Identity(), [newX, newY, 0]);
+    scene.taxi.local = multiplyMat4(posMatrix, rotMatrix);
+    stack = [];
+    walk_update(scene.root, stack, mat4Identity());
+    collisions = check_taxi_collisions(scene.taxi, scene.root);
+
+    if (collisions.length > 0) {
+        // Block horizontal movement
+        newX = currentX;
+        taxiPhysics.velocity.x = 0;
+    }
+
+    // Apply final position
+    posMatrix = mat4Translate(mat4Identity(), [newX, newY, 0]);
+    scene.taxi.local = multiplyMat4(posMatrix, rotMatrix);
+
+    // Update taxi facing direction based on input
+    if (arrowKeys.left && !taxiPhysics.onGround) {
+        taxiPhysics.facingRight = false;
+    }
+    if (arrowKeys.right && !taxiPhysics.onGround) {
+        taxiPhysics.facingRight = true;
+    }
+
+    // Control flame visibility using scale (0 = hidden, 1 = visible)
+    if (scene.taxi.thrustFlame) {
+        const thrustScale = arrowKeys.up ? 1.0 : 0.0;
+        scene.taxi.thrustFlame.dynamic = mat4Scale(mat4Identity(), [0.4 * thrustScale, 0.5 * thrustScale, 0.3 * thrustScale]);
+    }
+    if (scene.taxi.leftFlame) {
+        const leftScale = (arrowKeys.right && !taxiPhysics.onGround) ? 1.0 : 0.0;
+        scene.taxi.leftFlame.dynamic = mat4Scale(mat4Identity(), [0.4 * leftScale, 0.5 * leftScale, 0.3 * leftScale]);
+    }
+    if (scene.taxi.rightFlame) {
+        const rightScale = (arrowKeys.left && !taxiPhysics.onGround) ? 1.0 : 0.0;
+        scene.taxi.rightFlame.dynamic = mat4Scale(mat4Identity(), [0.4 * rightScale, 0.5 * rightScale, 0.3 * rightScale]);
+    }
+}
+
 // Main rendering loop
 let lastTime = performance.now();
 
@@ -162,12 +330,12 @@ function render(now) {
     lastTime = now;
 
     update_camera(dt);
+    update_taxi(dt);
     scene_builder.update_lights();
 
+    // Final update pass for rendering
     const stack = [];
     walk_update(scene.root, stack, mat4Identity());
-
-    detect_collisions(scene.root);
 
     gl.enable(gl.DEPTH_TEST);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -182,6 +350,7 @@ function render(now) {
 
 // init function calls
 register_input();
+register_taxi_input();
 register_ui();
 
 const startTime = performance.now();

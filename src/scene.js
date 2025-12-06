@@ -11,6 +11,7 @@ function create_scene(gl, program, uniforms) {
         cube: make_shape(gl, program, cube_data),
         sphere: make_shape(gl, program, () => sphere_data(30, 30, 1)),
         cone: make_shape(gl, program, () => cone_data(30, 30, 1, 1)),
+        cylinder: make_shape(gl, program, () => cylinder_data(30, 30, 1, 1)),
     };
 
     const state = {
@@ -24,7 +25,256 @@ function create_scene(gl, program, uniforms) {
             color2: [0.7, 0.7, 0.7],
         },
         root: null,
+        taxi: null,
     };
+
+    function build_taxi() {
+        // Taxi root node - positioned at starting location (above ground)
+        const taxiRoot = create_model_node(
+            {x: -6.0, y: 3.5, z: 0.0},
+            {x: 0.0, y: 0.0, z: 0.0},
+            {x: 1.0, y: 1.0, z: 1.0},
+            null,
+            null,
+            uniforms,
+            null,
+            null
+        );
+
+        // Main body - yellow taxi body
+        const body = create_model_node(
+            {x: 0.0, y: 0.0, z: 0.0},
+            {x: 0.0, y: 0.0, z: 0.0},
+            {x: 1.8, y: 0.5, z: 0.8},
+            null,
+            shapes.cube,
+            uniforms,
+            {
+                Ka: 0.3,
+                Kd: 0.7,
+                Ks: 0.4,
+                alpha: 20.0,
+                color: [1.0, 0.9, 0.0], // Yellow
+                bumpOn: false
+            },
+            null
+        );
+        add_children(taxiRoot, body);
+
+        // Cabin/roof - smaller on top
+        const cabin = create_model_node(
+            {x: 0.0, y: 0.5, z: 0.0},
+            {x: 0.0, y: 0.0, z: 0.0},
+            {x: 1.2, y: 0.4, z: 0.75},
+            null,
+            shapes.cube,
+            uniforms,
+            {
+                Ka: 0.3,
+                Kd: 0.7,
+                Ks: 0.4,
+                alpha: 20.0,
+                color: [1.0, 0.9, 0.0], // Yellow
+                bumpOn: false
+            },
+            null
+        );
+        add_children(taxiRoot, cabin);
+
+        // Windshield - front
+        const windshield = create_model_node(
+            {x: 0.5, y: 0.5, z: 0.0},
+            {x: 0.0, y: 0.0, z: 0.0},
+            {x: 0.3, y: 0.35, z: 0.76},
+            null,
+            shapes.cube,
+            uniforms,
+            {
+                Ka: 0.2,
+                Kd: 0.3,
+                Ks: 0.9,
+                alpha: 100.0,
+                color: [0.2, 0.3, 0.4], // Dark blue-gray
+                bumpOn: false
+            },
+            null
+        );
+        add_children(taxiRoot, windshield);
+
+        // Taxi sign on roof
+        const taxiSign = create_model_node(
+            {x: 0.0, y: 0.95, z: 0.0},
+            {x: 0.0, y: 0.0, z: 0.0},
+            {x: 0.4, y: 0.15, z: 0.25},
+            null,
+            shapes.cube,
+            uniforms,
+            {
+                Ka: 0.5,
+                Kd: 0.6,
+                Ks: 0.3,
+                alpha: 10.0,
+                color: [1.0, 0.5, 0.0], // Orange
+                bumpOn: false
+            },
+            null
+        );
+        add_children(taxiRoot, taxiSign);
+
+        // Front left wheel
+        const frontLeftWheel = create_model_node(
+            {x: 0.6, y: -0.4, z: 0.65},
+            {x: 0.0, y: 0.0, z: Math.PI / 2},
+            {x: 0.3, y: 0.3, z: 0.2},
+            null,
+            shapes.cylinder,
+            uniforms,
+            {
+                Ka: 0.2,
+                Kd: 0.4,
+                Ks: 0.2,
+                alpha: 5.0,
+                color: [0.1, 0.1, 0.1], // Black
+                bumpOn: false
+            },
+            null
+        );
+        add_children(taxiRoot, frontLeftWheel);
+
+        // Front right wheel
+        const frontRightWheel = create_model_node(
+            {x: 0.6, y: -0.4, z: -0.65},
+            {x: 0.0, y: 0.0, z: Math.PI / 2},
+            {x: 0.3, y: 0.3, z: 0.2},
+            null,
+            shapes.cylinder,
+            uniforms,
+            {
+                Ka: 0.2,
+                Kd: 0.4,
+                Ks: 0.2,
+                alpha: 5.0,
+                color: [0.1, 0.1, 0.1], // Black
+                bumpOn: false
+            },
+            null
+        );
+        add_children(taxiRoot, frontRightWheel);
+
+        // Rear left wheel
+        const rearLeftWheel = create_model_node(
+            {x: -0.6, y: -0.4, z: 0.65},
+            {x: 0.0, y: 0.0, z: Math.PI / 2},
+            {x: 0.3, y: 0.3, z: 0.2},
+            null,
+            shapes.cylinder,
+            uniforms,
+            {
+                Ka: 0.2,
+                Kd: 0.4,
+                Ks: 0.2,
+                alpha: 5.0,
+                color: [0.1, 0.1, 0.1], // Black
+                bumpOn: false
+            },
+            null
+        );
+        add_children(taxiRoot, rearLeftWheel);
+
+        // Rear right wheel
+        const rearRightWheel = create_model_node(
+            {x: -0.6, y: -0.4, z: -0.65},
+            {x: 0.0, y: 0.0, z: Math.PI / 2},
+            {x: 0.3, y: 0.3, z: 0.2},
+            null,
+            shapes.cylinder,
+            uniforms,
+            {
+                Ka: 0.2,
+                Kd: 0.4,
+                Ks: 0.2,
+                alpha: 5.0,
+                color: [0.1, 0.1, 0.1], // Black
+                bumpOn: false
+            },
+            null
+        );
+        add_children(taxiRoot, rearRightWheel);
+
+        // Thrust flame - below taxi (visible when thrusting up)
+        const thrustFlame = create_model_node(
+            {x: 0.0, y: -0.7, z: 0.0},
+            {x: 0.0, y: 0.0, z: 0.0},
+            {x: 1.0, y: 1.0, z: 1.0},
+            null,
+            shapes.cone,
+            uniforms,
+            {
+                Ka: 0.8,
+                Kd: 0.6,
+                Ks: 0.3,
+                alpha: 10.0,
+                color: [1.0, 0.4, 0.0], // Orange
+                bumpOn: false
+            },
+            null
+        );
+        add_children(taxiRoot, thrustFlame);
+
+        // Left horizontal flame (visible when moving right - shoots from left side)
+        const leftFlame = create_model_node(
+            {x: -2.2, y: 0.0, z: 0},
+            {x: 90, y: Math.PI / 2, z: 0.0},
+            {x: 5, y: 1.0, z: 5},
+            null,
+            shapes.cone,
+            uniforms,
+            {
+                Ka: 0.8,
+                Kd: 0.6,
+                Ks: 0.3,
+                alpha: 10.0,
+                color: [1.0, 0.5, 0.1], // Orange-yellow
+                bumpOn: false
+            },
+            null
+        );
+        add_children(taxiRoot, leftFlame);
+
+        // Right horizontal flame (visible when moving left - shoots from right side)
+        const rightFlame = create_model_node(
+            {x: -1.7, y: 0.0, z: 0},
+            {x: 0.0, y: -Math.PI / 2, z: 0.0},
+            {x: 1.0, y: 1.0, z: 1.0},
+            null,
+            shapes.cone,
+            uniforms,
+            {
+                Ka: 0.8,
+                Kd: 0.6,
+                Ks: 0.3,
+                alpha: 10.0,
+                color: [1.0, 0.5, 0.1], // Orange-yellow
+                bumpOn: false
+            },
+            null
+        );
+        add_children(taxiRoot, rightFlame);
+
+        // Store references to flame nodes for toggling visibility
+        taxiRoot.thrustFlame = thrustFlame;
+        taxiRoot.leftFlame = leftFlame;
+        taxiRoot.rightFlame = rightFlame;
+
+        // Set custom bounding box for taxi that only covers the body, not the flames
+        taxiRoot.bounding = {
+            type: "box",
+            min: [-1.0, -0.5, -0.5],  // Covers main body and wheels
+            max: [ 1.0,  1.0,  0.5]   // Doesn't include extended flames
+        };
+
+        return taxiRoot;
+    }
 
     function generate_level() {
         const BASE_WIDTH = 10;
@@ -133,6 +383,11 @@ function create_scene(gl, program, uniforms) {
 
         let base = generate_level();
 
+        // Build taxi and add to scene
+        let taxi = build_taxi();
+        add_children(base, taxi);
+        state.taxi = taxi;
+
         state.root = base;
     }
 
@@ -153,6 +408,10 @@ function create_scene(gl, program, uniforms) {
 
     build_model();
     update_lights();
+
+    console.log("Scene built successfully!");
+    console.log("Root node:", state.root);
+    console.log("Taxi node:", state.taxi);
 
     return {
         state,
