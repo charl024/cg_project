@@ -607,6 +607,9 @@ function create_scene(gl, program, uniforms) {
         let rand_platform_idx = Math.floor(Math.random() * max_valid_platforms);
         let rand_platform_loc = state.level.platform_locs[rand_platform_idx];
         let platform_top = rand_platform_loc.y + (rand_platform_loc.h / 2);
+
+        state.level.goal_locs.push(rand_platform_loc);
+
         let arrow_offset_y = 13.0;
 
         const arrow_tail = create_model_node(
