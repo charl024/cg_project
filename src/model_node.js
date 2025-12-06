@@ -119,7 +119,7 @@ function walk_update(node, mtm_stack, parent_world) {
 
     // apply to children
     for (let child of node.children) {
-        walk_update(child, mtm_stack, world_inherited);
+        walk_update(child, mtm_stack, world_render);
     }
 
     parent_world = mtm_stack.pop();
@@ -210,6 +210,9 @@ function check_taxi_collisions(taxi, root) {
         if (node === taxi || is_child_of(node, taxi)) {
             continue;
         }
+
+        // skip goal arrow
+        if (node.isGoalArrow) continue;
 
         // Only check nodes that have a shape
         if (node.shape && oriented_bounding_box_intersection(taxi, node)) {

@@ -38,76 +38,76 @@ function pyramid_data() {
 }
 
 function cube_data() {
+    const vertices = [
+        -1, -1,  1,
+         1, -1,  1,
+         1,  1,  1,
+        -1,  1,  1,
 
-	const vertices = [
-		-1, -1,  1,
-		 1, -1,  1,
-		 1,  1,  1,
-		-1,  1,  1,
+         1, -1, -1,
+        -1, -1, -1,
+        -1,  1, -1,
+         1,  1, -1,
 
-		-1, -1, -1,
-		-1,  1, -1,
-		 1,  1, -1,
-		 1, -1, -1,
+        -1,  1,  1,
+         1,  1,  1,
+         1,  1, -1,
+        -1,  1, -1,
 
-		-1,  1, -1,
-		-1,  1,  1,
-		 1,  1,  1,
-		 1,  1, -1,
+        -1, -1, -1,
+         1, -1, -1,
+         1, -1,  1,
+        -1, -1,  1,
 
-		-1, -1, -1,
-		 1, -1, -1,
-		 1, -1,  1,
-		-1, -1,  1,
+         1, -1,  1,
+         1, -1, -1,
+         1,  1, -1,
+         1,  1,  1,
 
-		 1, -1, -1,
-		 1,  1, -1,
-		 1,  1,  1,
-		 1, -1,  1,
+        -1, -1, -1,
+        -1, -1,  1,
+        -1,  1,  1,
+        -1,  1, -1
+    ];
 
-		-1, -1, -1,
-		-1, -1,  1,
-		-1,  1,  1,
-		-1,  1, -1
-	];
+    const tex_coords = [
+        0,0, 1,0, 1,1, 0,1,
+        0,0, 1,0, 1,1, 0,1,
+        0,0, 1,0, 1,1, 0,1,
+        0,0, 1,0, 1,1, 0,1,
+        0,0, 1,0, 1,1, 0,1,
+        0,0, 1,0, 1,1, 0,1
+    ];
 
-	const tex_coords = [
-		0,0, 1,0, 1,1, 0,1,
-		0,0, 1,0, 1,1, 0,1,
-		0,0, 1,0, 1,1, 0,1,
-		0,0, 1,0, 1,1, 0,1,
-		0,0, 1,0, 1,1, 0,1,
-		0,0, 1,0, 1,1, 0,1
-	];
+    const normals = [
+        0,0,1, 0,0,1, 0,0,1, 0,0,1,
+        0,0,-1, 0,0,-1, 0,0,-1, 0,0,-1,
+        0,1,0, 0,1,0, 0,1,0, 0,1,0,
+        0,-1,0, 0,-1,0, 0,-1,0, 0,-1,0,
+        1,0,0, 1,0,0, 1,0,0, 1,0,0,
+        -1,0,0, -1,0,0, -1,0,0, -1,0,0
+    ];
 
-	const indices = [
-		0,1,2,    0,2,3,
-		4,5,6,    4,6,7,
-		8,9,10,   8,10,11,
-		12,13,14, 12,14,15,
-		16,17,18, 16,18,19,
-		20,21,22, 20,22,23
-	];
+    const indices = [
+        0,1,2,   0,2,3,
+        4,5,6,   4,6,7,
+        8,9,10,  8,10,11,
+        12,13,14, 12,14,15,
+        16,17,18, 16,18,19,
+        20,21,22, 20,22,23
+    ];
 
-	const normals = [
-		0,0,1, 0,0,1, 0,0,1, 0,0,1,
-		0,0,-1, 0,0,-1, 0,0,-1, 0,0,-1,
-		0,1,0, 0,1,0, 0,1,0, 0,1,0,
-		0,-1,0, 0,-1,0, 0,-1,0, 0,-1,0,
-		1,0,0, 1,0,0, 1,0,0, 1,0,0,
-		-1,0,0, -1,0,0, -1,0,0, -1,0,0
-	];
+    const tangents = compute_tangents(vertices, tex_coords, indices);
 
-	const tangents = compute_tangents(vertices, tex_coords, indices);
-
-	return {
-		vertices: new Float32Array(vertices),
-		indices: new Uint16Array(indices),
-		normals: new Float32Array(normals),
-		tex_coords: new Float32Array(tex_coords),
-		tangents: new Float32Array(tangents)
-	};
+    return {
+        vertices: new Float32Array(vertices),
+        indices: new Uint16Array(indices),
+        normals: new Float32Array(normals),
+        tex_coords: new Float32Array(tex_coords),
+        tangents: new Float32Array(tangents)
+    };
 }
+
 
 function sphere_data (u_steps, v_steps, r) {
 	let vertices = [];

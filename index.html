@@ -329,6 +329,7 @@ uniform float uAlpha;
 uniform vec3 uViewPos;
 uniform sampler2D uTex;
 uniform float uBumpStrength;
+uniform vec2 uTexScale;
 
 uniform bool uTexOn;
 uniform bool uBumpOn;
@@ -371,7 +372,7 @@ void main() {
   vec4 tex_color = vec4(1.0);
 
   if (uTexOn) {
-    tex_color = texture(uTex, vTexCoord);
+    tex_color = texture(uTex, vTexCoord  * uTexScale);
     if (uBumpOn) {
         vec3 vBitangent = normalize(cross(vNormal, vTangent));
         mat3 TBN = mat3(vTangent, vBitangent, vNormal);

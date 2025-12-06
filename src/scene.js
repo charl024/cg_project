@@ -4,7 +4,9 @@ function create_scene(gl, program, uniforms) {
     const textures = {
         rusty_metal1: create_texture(gl, "src/textures/rusty_metal1_tex.jpg"),
         rusty_metal2: create_texture(gl, "src/textures/rusty_metal2_tex.jpg"),
-        concrete_floor: create_texture(gl, "src/textures/concrete_floor_tex.jpg")
+        concrete_floor: create_texture(gl, "src/textures/concrete_floor_tex.jpg"),
+        grass_tex: create_texture(gl, "src/textures/grass_tex.png"),
+        red_brick_tex: create_texture(gl, "src/textures/red_brick_tex.png")
     };
 
     const shapes = {
@@ -18,6 +20,7 @@ function create_scene(gl, program, uniforms) {
         bumpStrength: 100.0,
         viewDirection: [0, 0, 0],
         temperatureLights: false,
+        dt: 0.0,
         lights: {
             pos1: [30, 40, 30],   // High above for 3D area
             pos2: [-30, 40, -30],
@@ -26,6 +29,10 @@ function create_scene(gl, program, uniforms) {
         },
         root: null,
         taxi: null,
+        level: {
+            platform_locs: [],
+            goal_locs: []
+        }
     };
 
     function build_taxi() {
@@ -321,7 +328,7 @@ function create_scene(gl, program, uniforms) {
 
         for (let z = 0; z < grid_length; z++) {
             for (let x = 0; x < grid_width; x++) {
-                // Perlin noise sample using both x and z for true 3D terrain
+                // Perlin noise sample
                 let n = perlin_noise(x * freq, z * freq);
                 n += 1.0;
                 n /= 2.0;
@@ -340,8 +347,8 @@ function create_scene(gl, program, uniforms) {
                     null,
                     shapes.cube,
                     uniforms,
-                    candy_material,
-                    null
+                    grass_material,
+                    textures.grass_tex
                 );
 
                 add_children(base, hill);
@@ -366,7 +373,7 @@ function create_scene(gl, program, uniforms) {
         let refuelTower = create_model_node(
             {x: refuelX, y: refuelBaseY + refuelTowerHeight / 2 + 0.5, z: refuelZ},
             {x: 0.0, y: 0.0, z: 0.0},
-            {x: 4.0, y: refuelTowerHeight, z: 4.0},
+            {x: 4.2, y: refuelTowerHeight, z: 4.2},
             null,
             shapes.cube,
             uniforms,
@@ -412,8 +419,15 @@ function create_scene(gl, program, uniforms) {
             let terrainHeight = Math.round(terrainNoise * max_hill_height);
 
             // Place tower on top of terrain
-            let towerHeight = 4 + Math.random() * 10;  // Random height 4-14
-            let baseY = terrainHeight - 5 + terrainHeight / 2;  // Top of terrain
+            let towerHeight = 4 + Math.random() * 10;
+            let baseY = terrainHeight - 5 + terrainHeight / 2;
+
+            let platform_loc = {
+                x: point.x,
+                y: baseY + towerHeight / 2 + 0.5,
+                z: point.z,
+                h: towerHeight
+            };
 
             let platform = create_model_node(
                 {x: point.x, y: baseY + towerHeight / 2 + 0.5, z: point.z},
@@ -423,158 +437,223 @@ function create_scene(gl, program, uniforms) {
                 shapes.cube,
                 uniforms,
                 metal_red_material,
-                null
+                textures.red_brick_tex
             );
+
+            platform.material.textureScale = [1.0, towerHeight / 2.0];
+
+            state.level.platform_locs.push(platform_loc);
 
             add_children(base, platform);
         }
 
+        let goal_arrow = create_goal_arrow();
+        add_children(base, goal_arrow);
+
         return base;
     }
 
-    function generate_tall_towers_level() {
-        let bounds = {
-            xmin: -BASE_WIDTH + 2,
-            xmax: BASE_WIDTH - 2,
-            ymin: 2,
-            ymax: BASE_HEIGHT,
-            zmin: -BASE_LENGTH + 2,
-            zmax: BASE_LENGTH - 2
+    // function generate_tall_towers_level() {
+    //     let bounds = {
+    //         xmin: -BASE_WIDTH + 2,
+    //         xmax: BASE_WIDTH - 2,
+    //         ymin: 2,
+    //         ymax: BASE_HEIGHT,
+    //         zmin: -BASE_LENGTH + 2,
+    //         zmax: BASE_LENGTH - 2
+    //     };
+
+    //     const base = create_model_node(
+    //         {x: 0.0, y: -5.0, z: 0.0},
+    //         {x: 0.0, y: 0.0, z: 0.0},
+    //         {x: BASE_WIDTH, y: 1.0, z: BASE_LENGTH},
+    //         null,
+    //         shapes.cube,
+    //         uniforms,
+    //         ground_material,
+    //         null
+    //     );
+
+
+    //     let points = get_spaced_points(bounds, 5, 5, MAX_PLATFORMS, false);
+        
+    //     console.log(points.length);
+
+    //     for (let point of points) {
+
+    //         let height = Math.random() * MAX_SPAWN_HEIGHT;
+
+    //          let platform = create_model_node(
+    //             {x: point.x, y: height, z: point.z},
+    //             {x: 0.0, y: 0.0, z: 0.0},
+    //             {x: 1.0, y: height, z: 1.0},
+    //             null,
+    //             shapes.cube,
+    //             uniforms,
+    //             metal_red_material,
+    //             null
+    //         );
+
+    //         add_children(base, platform);
+    //     }
+
+    //     return base;
+    // }
+
+    // function generate_hilly_rough_level() {
+    //     const base = create_model_node(
+    //         {x: 0.0, y: -5.0, z: 0.0},
+    //         {x: 0.0, y: 0.0, z: 0.0},
+    //         {x: BASE_WIDTH, y: 1.0, z: BASE_LENGTH},
+    //         null,
+    //         shapes.cube,
+    //         uniforms,
+    //         ground_material,
+    //         null
+    //     );
+
+    //     let max_hill_height = 10;
+    //     let grid_width = 20;
+    //     let grid_length = 20;
+    //     let cell_width = (2 * BASE_WIDTH) / grid_width;
+    //     let cell_length = (2 * BASE_LENGTH) / grid_length;
+
+    //     let freq = 0.2;
+
+    //     for (let z = 0; z < grid_length; z++) {
+    //         for (let x = 0; x < grid_width; x++) {
+
+    //             // perlin noise sample
+    //             let n = perlin_noise(x * freq, z * freq);
+    //             n += 1.0;
+    //             n /= 2.0;
+
+    //             let y = Math.round(n * max_hill_height);
+
+    //             let px = -BASE_WIDTH  + x * cell_width  + cell_width / 2;
+    //             let pz = -BASE_LENGTH + z * cell_length + cell_length / 2;
+
+    //             let ph = y / 2 - 4.8;
+
+    //             let hill = create_model_node(
+    //                 {x: px, y: ph, z: pz},
+    //                 {x: 0.0, y: 0.0, z: 0.0},
+    //                 {x: cell_width, y: y, z: cell_length},
+    //                 null,
+    //                 shapes.cube,
+    //                 uniforms,
+    //                 candy_material,
+    //                 null
+    //             );
+
+    //             add_children(base, hill);
+    //         }
+    //     }
+
+    //     return base;
+    // }
+
+    // function generate_floating_platform_level() {
+    //     let bounds = {
+    //         xmin: -BASE_WIDTH + 2,
+    //         xmax: BASE_WIDTH - 2,
+    //         ymin: 5,
+    //         ymax: BASE_HEIGHT,
+    //         zmin: -BASE_LENGTH + 2,
+    //         zmax: BASE_LENGTH - 2
+    //     };
+
+    //     const base = create_model_node(
+    //         {x: 0.0, y: -5.0, z: 0.0},
+    //         {x: 0.0, y: 0.0, z: 0.0},
+    //         {x: BASE_WIDTH, y: 1.0, z: BASE_LENGTH},
+    //         null,
+    //         shapes.cube,
+    //         uniforms,
+    //         ground_material,
+    //         null
+    //     );
+
+
+    //     let points = get_spaced_points(bounds, 6, 50, MAX_PLATFORMS, true);
+        
+    //     for (let point of points) {
+
+    //         let height = Math.random() * MAX_SPAWN_HEIGHT;
+
+    //          let platform = create_model_node(
+    //             {x: point.x, y: height, z: point.z},
+    //             {x: 0.0, y: 0.0, z: 0.0},
+    //             {x: 1.0, y: 0.2, z: 1.0},
+    //             null,
+    //             shapes.cube,
+    //             uniforms,
+    //             metal_red_material,
+    //             null
+    //         );
+
+    //         add_children(base, platform);
+    //     }
+
+    //     return base;
+    // }
+
+    function create_goal_arrow() {
+        let max_valid_platforms = state.level.platform_locs.length;
+        if (max_valid_platforms === 0) {
+            return null;
+        }
+
+        let rand_platform_idx = Math.floor(Math.random() * max_valid_platforms);
+        let rand_platform_loc = state.level.platform_locs[rand_platform_idx];
+        let platform_top = rand_platform_loc.y + (rand_platform_loc.h / 2);
+        let arrow_offset_y = 13.0;
+
+        const arrow_tail = create_model_node(
+            {
+                x: rand_platform_loc.x,
+                y: platform_top + arrow_offset_y,
+                z: rand_platform_loc.z
+            },
+            {x: 0.0, y: 0.0, z: 0.0},
+            {x: 0.4, y: 2.0, z: 0.4},
+            null,
+            shapes.cube,
+            uniforms,
+            goal_arrow_material,
+            null
+        );
+
+        const arrow_head = create_model_node(
+            {x: 0.0, y: -1.5, z: 0.0},
+            {x: -(Math.PI / 2), y: 0.0, z: 0.0},
+            {x: 2.0, y: 2.0, z: 0.5},
+            null,
+            shapes.cone,
+            uniforms,
+            goal_arrow_material,
+            null
+        );
+        arrow_tail.isGoalArrow = true;
+        arrow_head.isGoalArrow = true;
+
+        arrow_tail.wtransform_cb = function() {
+            const t = scene.time;
+
+            const bob = Math.sin(t * 2.0) * 0.5;
+            const rot = t * 1.5;
+
+            let d = mat4Identity();
+            d = mat4Translate(d, [0, bob, 0]);
+            d = mat4RotateY(d, rot);
+            d = mat4Scale(d, [0.5, 2.0, 0.5]);
+
+            return d;
         };
 
-        const base = create_model_node(
-            {x: 0.0, y: -5.0, z: 0.0},
-            {x: 0.0, y: 0.0, z: 0.0},
-            {x: BASE_WIDTH, y: 1.0, z: BASE_LENGTH},
-            null,
-            shapes.cube,
-            uniforms,
-            ground_material,
-            null
-        );
+        add_children(arrow_tail, arrow_head);
 
-
-        let points = get_spaced_points(bounds, 5, 5, MAX_PLATFORMS, false);
-        
-        console.log(points.length);
-
-        for (let point of points) {
-
-            let height = Math.random() * MAX_SPAWN_HEIGHT;
-
-             let platform = create_model_node(
-                {x: point.x, y: height, z: point.z},
-                {x: 0.0, y: 0.0, z: 0.0},
-                {x: 1.0, y: height, z: 1.0},
-                null,
-                shapes.cube,
-                uniforms,
-                metal_red_material,
-                null
-            );
-
-            add_children(base, platform);
-        }
-
-        return base;
-    }
-
-    function generate_hilly_rough_level() {
-        const base = create_model_node(
-            {x: 0.0, y: -5.0, z: 0.0},
-            {x: 0.0, y: 0.0, z: 0.0},
-            {x: BASE_WIDTH, y: 1.0, z: BASE_LENGTH},
-            null,
-            shapes.cube,
-            uniforms,
-            ground_material,
-            null
-        );
-
-        let max_hill_height = 10;
-        let grid_width = 20;
-        let grid_length = 20;
-        let cell_width = (2 * BASE_WIDTH) / grid_width;
-        let cell_length = (2 * BASE_LENGTH) / grid_length;
-
-        let freq = 0.2;
-
-        for (let z = 0; z < grid_length; z++) {
-            for (let x = 0; x < grid_width; x++) {
-
-                // perlin noise sample
-                let n = perlin_noise(x * freq, z * freq);
-                n += 1.0;
-                n /= 2.0;
-
-                let y = Math.round(n * max_hill_height);
-
-                let px = -BASE_WIDTH  + x * cell_width  + cell_width / 2;
-                let pz = -BASE_LENGTH + z * cell_length + cell_length / 2;
-
-                let ph = y / 2 - 4.8;
-
-                let hill = create_model_node(
-                    {x: px, y: ph, z: pz},
-                    {x: 0.0, y: 0.0, z: 0.0},
-                    {x: cell_width, y: y, z: cell_length},
-                    null,
-                    shapes.cube,
-                    uniforms,
-                    candy_material,
-                    null
-                );
-
-                add_children(base, hill);
-            }
-        }
-
-        return base;
-    }
-
-    function generate_floating_platform_level() {
-        let bounds = {
-            xmin: -BASE_WIDTH + 2,
-            xmax: BASE_WIDTH - 2,
-            ymin: 5,
-            ymax: BASE_HEIGHT,
-            zmin: -BASE_LENGTH + 2,
-            zmax: BASE_LENGTH - 2
-        };
-
-        const base = create_model_node(
-            {x: 0.0, y: -5.0, z: 0.0},
-            {x: 0.0, y: 0.0, z: 0.0},
-            {x: BASE_WIDTH, y: 1.0, z: BASE_LENGTH},
-            null,
-            shapes.cube,
-            uniforms,
-            ground_material,
-            null
-        );
-
-
-        let points = get_spaced_points(bounds, 6, 50, MAX_PLATFORMS, true);
-        
-        for (let point of points) {
-
-            let height = Math.random() * MAX_SPAWN_HEIGHT;
-
-             let platform = create_model_node(
-                {x: point.x, y: height, z: point.z},
-                {x: 0.0, y: 0.0, z: 0.0},
-                {x: 1.0, y: 0.2, z: 1.0},
-                null,
-                shapes.cube,
-                uniforms,
-                metal_red_material,
-                null
-            );
-
-            add_children(base, platform);
-        }
-
-        return base;
+        return arrow_tail;
     }
 
     function build_model() {

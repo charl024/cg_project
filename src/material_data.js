@@ -70,7 +70,8 @@ const metal_red_material = {
     Ks: 0.9,
     alpha: 1000.0,
     color: colorconvert(244, 0, 0),
-    bumpOn: true
+    bumpOn: true,
+    textureScale: [1.0, 6.0]
 };
 
 const metal_blue_material = {
@@ -81,12 +82,12 @@ const metal_blue_material = {
     bumpOn: true
 };
 
-const candy_material = {
+const grass_material = {
     Kd: 0.5,
     Ks: 0.5,
     alpha: 10.0,
     color: colorconvert(38, 180, 28),
-    bumpOn: false
+    bumpOn: true
 }
 
 const ball_material = {   
@@ -95,6 +96,14 @@ const ball_material = {
     alpha: 1.0,
     color: [1.0, 0.9, 1.0],
     bumpOn: true
+};
+
+const goal_arrow_material = {   
+    Kd: 0.1,
+    Ks: 0.9,
+    alpha: 1.0,
+    color: colorconvert(255.0, 179.0, 0.0),
+    bumpOn: false
 };
 
 

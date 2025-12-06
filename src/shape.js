@@ -26,7 +26,8 @@ class Shape {
             Ks: material.Ks ?? 0.5,
             alpha: material.alpha ?? 10.0,
             color: material.color ?? [0.5, 0.5, 0.5],
-            bumpOn: material.bumpOn ?? false
+            bumpOn: material.bumpOn ?? false,
+            textureScale: material.textureScale ?? [1.0, 1.0]
         };
 
         gl.useProgram(this.program);
@@ -36,6 +37,9 @@ class Shape {
         if (has_texture) {
             if (texture_info.isVideo) {
                 update_video_texture(gl, texture_info);
+            }
+            if (material.textureScale) {
+                gl.uniform2fv(global_uniforms.uTexScale, material.textureScale);
             }
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, texture_info.texture);

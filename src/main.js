@@ -55,6 +55,7 @@ const global_uniforms = {
     uBumpStrength: gl.getUniformLocation(program, "uBumpStrength"),
     uTex: gl.getUniformLocation(program, "uTex"),
     uTime: gl.getUniformLocation(program, "uTime"),
+    uTexScale: gl.getUniformLocation(program, "uTexScale")
 };
 
 // Camera data - 3D third-person camera attached to taxi
@@ -543,6 +544,8 @@ function render(now) {
     gameState.time = elapsed;
 
     // Update taxi first, then camera uses taxi's new position
+    scene.dt = dt;
+    scene.time = elapsed;
     update_taxi(dt);
     update_camera(dt);
     scene_builder.update_lights();
