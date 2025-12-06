@@ -201,7 +201,7 @@ function init_perm() {
 	return permutation;
 }
 
-const perm = make_perm();
+const perm = init_perm();
 
 function perlin_noise(input_x, input_y) {
     const x = Math.floor(input_x) & 255;

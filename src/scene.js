@@ -353,13 +353,41 @@ function create_scene(gl, program, uniforms) {
     }
 
     function build_model() {
+        // const ground = create_model_node(
+        //     {x: 0.0, y: -5.0, z: 0.0},
+        //     {x: 0.0, y: 0.0, z: 0.0},
+        //     {x: 10.0, y: 1.0, z: 10.0},
+        //     null,
+        //     shapes.cube,
+        //     uniforms,
+        //     ground_material,
+        //     null
+        // );
+
+        // const body = create_model_node(
+        //     {x: 0.0, y: 3.0, z: 0.0},
+        //     {x: 0.0, y: 0.0, z: 0.0},
+        //     {x: 1.0, y: 1.0, z: 1.0},
+        //     (mtm) => {
+        //         let mat = mat4Identity();
+        //         mat = mat4Translate(mat, [0.0, 0.08*Math.sin(Date.now()/100), 0.0]);
+        //         return multiplyMat4(mtm, mat);
+        //     },
+        //     shapes.cube,
+        //     uniforms,
+        //     metal_orange_material,
+        //     textures.rusty_metal1
+        // );
+
+        // add_children(ground, body);
+
         let base = generate_level();
 
         // Build taxi and add to scene
         let taxi = build_taxi();
         add_children(base, taxi);
-        
         state.taxi = taxi;
+
         state.root = base;
     }
 
