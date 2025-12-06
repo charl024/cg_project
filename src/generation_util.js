@@ -178,3 +178,82 @@ function dim_idx_conv_1t3(idx, W, H) {
     let x = idx % W;
     return {x: x, y: y, z: z};
 }
+
+// noise generation (perlin noise)
+function init_perm() {
+	const permutation = [];
+	for(let i = 0; i < 256; i++) {
+		permutation.push(i);
+	}
+
+	for(let e = permutation.length-1; e > 0; e--) {
+		const index = Math.round(Math.random()*(e-1));
+		const temp = permutation[e];
+		
+		permutation[e] = permutation[index];
+		permutation[index] = temp;
+	}
+	
+	for(let i = 0; i < 256; i++) {
+		permutation.push(permutation[i]);
+	}
+	
+	return permutation;
+}
+
+const perm = make_perm();
+
+function perlin_noise(input_x, input_y) {
+    const x = Math.floor(input_x) & 255;
+    const y = Math.floor(input_y) & 255;
+
+    const xf = input_x - Math.floor(input_x);
+    const yf = input_y - Math.floor(input_y);
+
+    const top_right  = [xf - 1.0, yf - 1.0];
+    const top_left   = [xf,       yf - 1.0];
+    const bot_right  = [xf - 1.0, yf];
+    const bot_left   = [xf,       yf];
+
+    // lookup permutation-based corner values
+    let val_tr = perm[perm[x + 1] + (y + 1)];
+    let val_tl = perm[perm[x]     + (y + 1)];
+    let val_br = perm[perm[x + 1] + y];
+    let val_bl = perm[perm[x]     + y];
+
+    // dot products with their gradient vectors
+    let d_tr = dot2(top_right,  gradient2(val_tr));
+    let d_tl = dot2(top_left,   gradient2(val_tl));
+    let d_br = dot2(bot_right,  gradient2(val_br));
+    let d_bl = dot2(bot_left,   gradient2(val_bl));
+
+    const u = fade(xf);
+    const v = fade(yf);
+
+    // bilinear interpolation of dot products
+    const lerp_bottom = lerp(u, d_bl, d_br);
+    const lerp_top    = lerp(u, d_tl, d_tr);
+
+    return lerp(v, lerp_bottom, lerp_top);
+}
+
+function dot2(a, b) {
+    return a[0]*b[0] + a[1]*b[1];
+}
+
+function fade(t) {
+    return ((6*t - 15)*t + 10)*t*t*t;
+}
+
+function lerp(t, a, b) {
+    return a + t*(b - a);
+}
+
+// returns one of 4 gradient directions based on permutation value
+function gradient2(v) {
+    const h = v & 3;
+    if (h === 0) return [ 1.0,  1.0];
+    if (h === 1) return [-1.0,  1.0];
+    if (h === 2) return [-1.0, -1.0];
+    return [ 1.0, -1.0];
+}
