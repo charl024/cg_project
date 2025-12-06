@@ -284,14 +284,14 @@ void main() {
 
   mat3 normal_matrix = transpose(inverse(mat3(mv_mat)));
 
-  vLightPos1 = uLightPos1;
-  vLightPos2 = uLightPos2;
+  //vLightPos1 = uLightPos1;
+  //vLightPos2 = uLightPos2;
 
-  //vec3 light1_view = (uModelViewMatrix * vec4(uLightPos1, 1.0)).xyz;
-  //vec3 light2_view = (uModelViewMatrix * vec4(uLightPos2, 1.0)).xyz;
+  vec3 light1_view = (uModelViewMatrix * vec4(uLightPos1, 1.0)).xyz;
+  vec3 light2_view = (uModelViewMatrix * vec4(uLightPos2, 1.0)).xyz;
 
-  //vLightPos1 = light1_view;
-  //vLightPos2 = light2_view;
+  vLightPos1 = light1_view;
+  vLightPos2 = light2_view;
 
   vColor = aColor * uMaterialColor;
   vPosition = position.xyz;

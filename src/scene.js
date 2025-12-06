@@ -31,7 +31,7 @@ function create_scene(gl, program, uniforms) {
     function build_taxi() {
         // Taxi root node - positioned at starting location (above ground)
         const taxiRoot = create_model_node(
-            {x: -6.0, y: 3.5, z: 0.0},
+            {x: -6.0, y: 10.5, z: 0.0},
             {x: 0.0, y: 0.0, z: 0.0},
             {x: 1, y: 1, z: 1},
             null,
