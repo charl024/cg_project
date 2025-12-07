@@ -47,8 +47,10 @@ const uniforms = {
 const global_uniforms = {
     uMVM: gl.getUniformLocation(program, "uModelViewMatrix"),
     uPM: gl.getUniformLocation(program, "uProjectionMatrix"),
-    uLightPos1: gl.getUniformLocation(program, "uLightPos1"),
-    uLightPos2: gl.getUniformLocation(program, "uLightPos2"),
+    // uLightPos1: gl.getUniformLocation(program, "uLightPos1"),
+    // uLightPos2: gl.getUniformLocation(program, "uLightPos2"),
+    uLightDir1: gl.getUniformLocation(program, "uLightDir1"),
+    uLightDir2: gl.getUniformLocation(program, "uLightDir2"),
     uLightColor1: gl.getUniformLocation(program, "uLightColor1"),
     uLightColor2: gl.getUniformLocation(program, "uLightColor2"),
     uViewPos: gl.getUniformLocation(program, "uViewPos"),
@@ -173,8 +175,10 @@ function set_global_uniforms(view, elapsed) {
 
     gl.uniformMatrix4fv(global_uniforms.uPM, false, projection);
     gl.uniformMatrix4fv(global_uniforms.uMVM, false, view);
-    gl.uniform3fv(global_uniforms.uLightPos1, scene.lights.pos1);
-    gl.uniform3fv(global_uniforms.uLightPos2, scene.lights.pos2);
+    // gl.uniform3fv(global_uniforms.uLightPos1, scene.lights.pos1);
+    // gl.uniform3fv(global_uniforms.uLightPos2, scene.lights.pos2);
+    gl.uniform3fv(global_uniforms.uLightDir1, scene.lights.dir1);
+    gl.uniform3fv(global_uniforms.uLightDir2, scene.lights.dir2);
     gl.uniform3fv(global_uniforms.uLightColor1, scene.lights.color1);
     gl.uniform3fv(global_uniforms.uLightColor2, scene.lights.color2);
     gl.uniform3fv(global_uniforms.uViewPos, scene.viewDirection);
@@ -660,29 +664,27 @@ function update_taxi(dt) {
     let landedPlatform = null;
 
     // If currently colliding, check which direction to block
-    if (collisions.length > 0) {
+    for (let collision of collisions) {
+        const taxiCenter = scene.taxi.world_bounding.center;
 
-        for (let collision of collisions) {
-            const taxiCenter = scene.taxi.world_bounding.center;
+        // Check if taxi bottom is near object top (on ground)
+        const taxiBottom = taxiCenter[1] - scene.taxi.world_bounding.halfsize[1];
+        const objTop = collision.max[1];
 
-            // Check if taxi bottom is near object top (on ground)
-            const taxiBottom = taxiCenter[1] - scene.taxi.world_bounding.halfsize[1];
-            const objTop = collision.max[1];
+        if (Math.abs(taxiBottom - objTop) < 0.3 && taxiPhysics.velocity.y <= 0) {
+            taxiPhysics.onGround = true;
+            taxiPhysics.velocity.y = 0;
 
-            if (Math.abs(taxiBottom - objTop) < 0.3 && taxiPhysics.velocity.y <= 0) {
-                taxiPhysics.onGround = true;
-                taxiPhysics.velocity.y = 0;
-
-                // Track which platform we landed on
-                if (collision.node) {
-                    landedPlatform = collision.node;
-
-                    // Check if this is a refuel station
-                    if (collision.node.isRefuelStation) {
-                        gameState.isRefueling = true;
-                    }
+            // Track which platform we landed on
+            if (collision.node) {
+                landedPlatform = collision.node;
+                
+                // Check if this is a refuel station
+                if (collision.node.isRefuelStation) {
+                    gameState.isRefueling = true;
                 }
             }
+            break; // ground hit detected
         }
     }
 
@@ -696,7 +698,7 @@ function update_taxi(dt) {
     applyTaxiTransform(currentX, newY, currentZ);
     stack = [];
     walk_update(scene.root, stack, mat4Identity());
-    //collisions = check_taxi_collisions(scene.taxi, scene.root);
+    // collisions = check_taxi_collisions(scene.taxi, scene.root);
 
     // if (collisions.length > 0) {
     //     newY = currentY;
@@ -709,9 +711,9 @@ function update_taxi(dt) {
     applyTaxiTransform(newX, newY, currentZ);
     stack = [];
     walk_update(scene.root, stack, mat4Identity());
-    //collisions = check_taxi_collisions(scene.taxi, scene.root);
-
-    if (collisions.length > 0) {
+    
+    let colX = check_taxi_collisions(scene.taxi, scene.root);
+    if (colX.length > 0) {
         newX = currentX;
         taxiPhysics.velocity.x = 0;
     }
@@ -721,9 +723,9 @@ function update_taxi(dt) {
     applyTaxiTransform(newX, newY, newZ);
     stack = [];
     walk_update(scene.root, stack, mat4Identity());
-    //collisions = check_taxi_collisions(scene.taxi, scene.root);
-
-    if (collisions.length > 0) {
+    
+    let colZ = check_taxi_collisions(scene.taxi, scene.root);
+    if (colZ.length > 0) {
         newZ = currentZ;
         taxiPhysics.velocity.z = 0;
     }
