@@ -12,7 +12,134 @@ Most of the stuff where you add an object to the scene is in `scene.js`, so star
 
 ### Changelog
 
-#### Latest Session Changes (UI System Implementation)
+#### Latest Session Changes (Passenger & Crash System)
+
+**Passenger Pickup/Dropoff System** (`src/main.js`, `src/scene.js`):
+- Complete passenger delivery gameplay loop implemented
+- **Pickup**: Land on platform with green arrow to pick up passenger
+- **Delivery**: Arrow moves to destination, land there to deliver
+- **Trip Timer**: Shows elapsed time while carrying passenger (color-coded: green < 15s, yellow < 25s, orange > 25s)
+- Passenger state persists through crashes (don't lose passenger on crash)
+- New pickup location randomly chosen after each delivery
+
+**Crash Detection System** (`src/main.js`):
+- Landing velocity thresholds determine landing quality:
+  - **Perfect**: velocity < 3 (2x score multiplier)
+  - **Good**: velocity 3-5 (1.5x multiplier)
+  - **OK**: velocity 5-8 (1x multiplier)
+  - **Rough**: velocity 8-12 (0.5x multiplier)
+  - **Crash**: velocity > 12 (lose life, respawn)
+- Crash triggers life loss and respawn to level spawn point
+- Passenger and trip timer preserved on crash
+
+**Crash Animation** (`index.html`, `src/main.js`):
+- Red/orange radial gradient flash effect on crash
+- Large "CRASH!" text with zoom-in animation
+- CSS keyframe animations for smooth visual feedback
+- Animation lasts ~1.2 seconds before fading
+
+**Scoring System** (`src/main.js`):
+- Base fare: $10.00 per delivery
+- Time bonus: $0.50 per second under 30 seconds (max $15 bonus)
+- Total fare multiplied by landing quality multiplier
+- Example: Perfect landing in 10 seconds = ($10 + $10 bonus) × 2.0 = $40.00
+
+**Goal Arrow System** (`src/scene.js`):
+- Green arrow hovers above current objective platform
+- Arrow animates with bobbing and rotation effect
+- Points to pickup location initially
+- Moves to dropoff location after passenger pickup
+- `set_goal_arrow_target()`: Move arrow to specific platform
+- `setup_next_passenger()`: Choose new random pickup after delivery
+
+**Platform System** (`src/scene.js`):
+- Platforms tracked as nodes with `isPlatform` flag
+- `isPickupPlatform` / `isDropoffPlatform` flags for objective tracking
+- `platformLocation` stores position data on each platform node
+- `get_random_dropoff_platform()`: Select random destination (excludes pickup)
+
+**UI Updates** (`index.html`, `src/main.js`):
+- Removed PAX (passenger) indicator from HUD
+- Removed landing quality overlay display
+- Added TRIP timer showing delivery time when carrying passenger
+- Crash animation overlay added to canvas container
+
+**Safety Systems** (`src/main.js`):
+- Minimum Y floor check: Taxi teleports to spawn if falling below Y=-20
+- Prevents taxi from falling through world permanently
+
+---
+
+#### Previous Session Changes (3D World & Level Generation)
+
+**3D Third-Person Camera** (`src/main.js`):
+- Camera follows behind taxi based on heading direction
+- Configurable offset: 18 units behind, 8 units above
+- Camera looks ahead of taxi (12 units forward)
+- Smooth zoom control with mouse wheel (0.5x to 2.0x)
+- Rigid attachment to taxi position and rotation
+
+**3D Taxi Movement** (`src/main.js`):
+- Full 3D movement with heading-based controls:
+  - **W/S or Up/Down**: Move forward/backward in facing direction
+  - **A/D or Left/Right**: Rotate taxi left/right
+  - **Space/Shift**: Vertical thrust
+- Turn speed: 1.5 radians/second
+- Forward acceleration: 12.0 units/s²
+- Thrust power: 18.0 units/s²
+- Max horizontal velocity: 15.0 units/s
+- Taxi model rotates with 90° offset to face movement direction
+
+**Perlin Noise Terrain** (`src/scene.js`, `src/generation_util.js`):
+- Procedural terrain using 2D Perlin noise
+- 50x50 grid of terrain cubes with height variation
+- Grass texture applied to terrain
+- `sample_terrain_height()`: Get height at any grid position
+- `perlin_noise()`: 2D noise function with gradient vectors
+- Terrain covers 100x100 unit area (-50 to +50 on X and Z)
+
+**Tower Platform Generation** (`src/scene.js`):
+- Brick towers generated using Poisson Disc sampling
+- Random heights (4-14 units) sitting on terrain
+- Red brick texture with proper UV scaling
+- Spawn clear radius (15 units) around taxi start
+- Refuel tower clear radius (8 units)
+- Up to 40 platforms per level
+
+**Refueling System** (`src/main.js`, `src/scene.js`):
+- Blue refuel station tower at fixed location
+- `isRefuelStation` flag on refuel tower node
+- Refuel rate: 33 fuel/second when landed on station
+- Fuel bar turns blue while refueling
+- `gameState.isRefueling` tracks refuel state
+
+**Dynamic Spawn Position** (`src/scene.js`):
+- `select_taxi_spawn_position()`: Choose random spawn in back quarter of map
+- Spawn snapped to grid cell center (always above terrain)
+- Spawn Y calculated from terrain height + clearance
+- Avoids spawning near refuel tower (12 unit minimum distance)
+
+**Level Regeneration** (`src/main.js`, `src/scene.js`):
+- Press **N** to generate new random level
+- `regenerate_level()`: Clears and rebuilds entire scene
+- Resets taxi position, velocity, fuel, lives
+- New terrain, platforms, and goal arrow generated
+- Passenger state reset on new level
+
+**Velocity Display** (`index.html`, `src/main.js`):
+- VEL indicator shows current taxi speed
+- Magnitude of 3D velocity vector
+- Useful for judging landing speed
+
+**Flame Effects** (`src/main.js`):
+- Back thrust flames when moving forward (W key)
+- Left/right turning flames when rotating (A/D keys)
+- Flames only visible when fuel available
+- Dynamic scaling for show/hide effect
+
+---
+
+#### Previous Session Changes (UI System Implementation)
 - **Game UI Overlay Created** (`index.html`):
   - Retro-styled UI bar positioned at bottom of canvas (brown/tan with green border)
   - Matches original Commodore 64 Space Taxi aesthetic
@@ -156,63 +283,69 @@ Most of the stuff where you add an object to the scene is in `scene.js`, so star
   - [x] Thrust mechanics (vertical boost)
   - [x] Horizontal momentum and air control
   - [x] Gravity
-  - [x] Rotation controls (tilt left/right) - Implemented as 180° flip based on direction
+  - [x] Rotation controls - Full 3D rotation with heading-based movement
 - [x] Fuel system with consumption and refueling
   - [x] Fuel consumption based on thrust usage
   - [x] Prevent thrust when fuel depleted
-  - [ ] Fuel refueling stations/pickups
+  - [x] Fuel refueling stations - Blue tower, land to refuel at 33/sec
 - [x] Collision response (taxi hitting platforms/walls)
+- [x] Crash detection with velocity thresholds
+- [x] Crash animation (red flash + "CRASH!" text)
 
-### 2. Side-Scrolling Camera System
-- [ ] Lock camera to side view (2D plane, show 3D models)
-- [ ] Camera follows taxi position
-- [ ] Camera bounds (don't move outside level)
-- [ ] Smooth camera tracking with optional lookahead
+### 2. Camera System
+- [x] 3D third-person camera following taxi
+- [x] Camera follows taxi position and heading
+- [x] Smooth zoom control with mouse wheel
+- [x] Camera offset configurable (behind/above taxi)
 
 ### 3. Level Design
-- [ ] Design proper Space Taxi levels with:
-  - [ ] Landing pads (start/destination)
-  - [ ] Walls and obstacles
-  - [ ] Narrow passages
-  - [ ] Fuel stations
-- [ ] Level data structure/format
-- [ ] Level loader/parser
-- [ ] Multiple level progression
+- [x] Procedural terrain generation with Perlin noise
+- [x] Tower platforms with Poisson Disc spacing
+- [x] Refuel station tower
+- [x] Level regeneration system (press N)
+- [x] Dynamic spawn position selection
+- [ ] Multiple handcrafted level designs
+- [ ] Level progression system
 
 ### 4. Passenger & Objective System
-- [ ] Passenger spawn locations (landing pads)
-- [ ] Passenger pickup detection
-- [ ] Passenger drop-off detection
-- [ ] Objective tracking (pick up from A, deliver to B)
-- [ ] Visual indicators for pickup/dropoff locations
+- [x] Passenger spawn locations (landing pads with arrow)
+- [x] Passenger pickup detection (land on pickup platform)
+- [x] Passenger drop-off detection (land on dropoff platform)
+- [x] Objective tracking (pick up from A, deliver to B)
+- [x] Visual indicators - Green arrow above objective platform
+- [x] Arrow moves to dropoff after pickup
+- [x] Trip timer while carrying passenger
 
 ### 5. Game States & UI
 - [ ] Main menu state
-- [ ] Playing state
+- [x] Playing state
 - [ ] Pause state
 - [ ] Game over state
 - [ ] Level complete state
 - [x] HUD overlay showing:
-  - [x] Fuel gauge (visual bar with color gradient)
+  - [x] Fuel gauge (visual bar with color gradient, blue when refueling)
   - [x] Score/Money display
-  - [x] Timer (M:SS format)
-  - [ ] Current objective
+  - [x] Trip timer (when carrying passenger)
+  - [x] Velocity display
   - [x] Lives/attempts remaining (5 life indicators)
-- [x] UI rendering system (HTML overlay or WebGL text) - HTML overlay implemented
+- [x] UI rendering system - HTML overlay implemented
+- [x] Crash animation overlay
 
 ### 6. Input System Refinement
-- [x] Map keyboard controls to taxi controls (thrust, left, right) - Arrow keys implemented
+- [x] Map keyboard controls - WASD/Arrows for movement, Space for thrust
+- [x] R to reset, N for new level
 - [ ] Keyboard controls for menus
-- [x] Input state management - Arrow key state tracking added
+- [x] Input state management
 - [ ] Control configuration/rebinding
 
 ### 7. Visual Polish
 - [x] Particle effects for:
-  - [x] Taxi thrust/exhaust - Implemented as flame cones (bottom + side thrusters)
-  - [ ] Collision sparks
+  - [x] Taxi thrust/exhaust - Flame cones (back + side thrusters)
+  - [x] Crash effect - Red/orange flash with text
   - [ ] Landing dust
-- [x] Visual feedback for fuel low warning - Fuel gauge shows color gradient (red when low)
-- [x] Smooth taxi rotation animation - 180° flip based on direction
+- [x] Visual feedback for fuel low warning - Fuel gauge color gradient
+- [x] Smooth taxi rotation animation
+- [x] Goal arrow bobbing/rotation animation
 - [ ] Landing pad highlight/animation
 
 ### 8. Audio
@@ -226,16 +359,17 @@ Most of the stuff where you add an object to the scene is in `scene.js`, so star
 - [ ] Audio system integration
 
 ### 9. Game Feel & Balance
-- [ ] Tune physics constants (gravity, thrust power, etc.)
-- [ ] Adjust fuel consumption rates
+- [x] Tune physics constants (gravity, thrust power, etc.)
+- [x] Adjust fuel consumption rates
+- [x] Scoring system (base fare + time bonus × landing multiplier)
+- [x] Lives/retry system (5 lives, crash costs 1)
+- [x] Landing quality affects score (perfect/good/ok/rough/crash)
 - [ ] Balance level difficulty progression
-- [ ] Scoring system (time bonus, fuel bonus, etc.)
-- [ ] Lives/retry system
 
 ### 10. Optional Enhancements
 - [ ] Leaderboard/high scores
 - [ ] Level editor
-- [ ] Procedurally generated levels
+- [x] Procedurally generated levels - Perlin terrain + Poisson platforms
 - [ ] Different taxi types/upgrades
 - [ ] Weather effects
 - [ ] Day/night cycle
@@ -251,11 +385,14 @@ python3 -m http.server 8000
 Then open your browser to: `http://localhost:8000`
 
 ### Controls
-- **Arrow Up**: Thrust (hold to fly, consumes fuel at 5/sec)
-- **Arrow Left/Right**: Horizontal control (only works when airborne, consumes fuel at 3/sec)
-- **WASD**: Move camera view
-- **Mouse Drag**: Rotate camera
-- **Mouse Wheel**: Zoom camera
+- **W / Arrow Up**: Move forward (in facing direction)
+- **S / Arrow Down**: Move backward
+- **A / Arrow Left**: Rotate taxi left
+- **D / Arrow Right**: Rotate taxi right
+- **Space / Shift**: Vertical thrust (fly upward)
+- **R**: Reset taxi to spawn (costs 1 life)
+- **N**: Generate new random level
+- **Mouse Wheel**: Zoom camera in/out
 
 ### UI System
 
@@ -263,50 +400,81 @@ The game features a retro-styled HUD overlay positioned at the bottom of the scr
 
 **HUD Elements (Left to Right):**
 1. **Money Display** (`$`): Shows current cash, starts at $0.00
-   - Will increase when completing deliveries/objectives
+   - Increases when delivering passengers
+   - Score = (Base $10 + Time Bonus) × Landing Quality Multiplier
 
 2. **Lives Display**: Five circular indicators
    - Gold circles = lives remaining
    - Gray circles = lives lost
-   - Starts with 5 lives
+   - Starts with 5 lives, crash costs 1 life
 
-3. **Fuel Gauge** (`E ▬▬▬▬ F`): Visual fuel bar
+3. **Trip Timer** (`TRIP`): Delivery timer
+   - Shows "--" when no passenger
+   - Shows elapsed seconds when carrying passenger
+   - Color-coded: Green (<15s), Yellow (<25s), Orange (>25s)
+
+4. **Fuel Gauge** (`E ▬▬▬▬ F`): Visual fuel bar
    - E (Empty) on left, F (Full) on right
-   - Color gradient: Red (low) → Yellow (medium) → Green (full)
+   - Orange gradient normally, Blue when refueling
    - Width adjusts in real-time as fuel is consumed
-   - Fuel depletes when using thrust controls
 
-4. **Time Display** (`TIME`): Game timer in M:SS format
-   - Counts up from 0:00
-   - Used for scoring/completion bonuses
+5. **Velocity Display** (`VEL`): Current taxi speed
+   - Magnitude of velocity vector
+   - Important for judging safe landing speed (<12 to avoid crash)
 
 **Fuel System:**
 - Starts at 100% (full)
-- Vertical thrust (↑): 5 fuel/second
-- Horizontal thrust (← →): 3 fuel/second (airborne only)
+- Vertical thrust (Space): 4 fuel/second
+- Forward/backward (W/S): 2 fuel/second
 - When fuel reaches 0, thrust is disabled
-- Taxi flames disappear when out of fuel
+- Land on blue refuel tower to refuel at 33/second
+- Fuel bar turns blue while refueling
 
-**Technical Implementation:**
-- HTML/CSS overlay positioned absolutely over WebGL canvas
-- Updated every frame via `update_ui()` in main.js
-- Smooth CSS transitions for fuel bar width changes
-- Game state tracked in `gameState` object
+**Crash Animation:**
+- Triggered when landing with velocity > 12
+- Red/orange radial flash effect
+- "CRASH!" text zooms in and fades
+- Taxi respawns at level start
+- Passenger and trip timer preserved
+
+### Gameplay
+
+**Objective:**
+1. Fly to the platform marked with the **green arrow**
+2. Land carefully to **pick up a passenger** (trip timer starts)
+3. Arrow moves to the **destination platform**
+4. Deliver the passenger with a good landing for **maximum fare**
+5. Repeat! Try to maximize earnings while managing fuel and lives
+
+**Landing Quality & Scoring:**
+| Landing Type | Velocity | Score Multiplier |
+|--------------|----------|------------------|
+| Perfect      | < 3      | 2.0x             |
+| Good         | 3-5      | 1.5x             |
+| OK           | 5-8      | 1.0x             |
+| Rough        | 8-12     | 0.5x             |
+| Crash        | > 12     | 0x (lose life)   |
+
+**Fare Calculation:**
+- Base fare: $10.00
+- Time bonus: $0.50 per second under 30s (max $15)
+- Final fare = (Base + Time Bonus) × Landing Multiplier
+- Example: Perfect landing in 10s = ($10 + $10) × 2.0 = **$40.00**
 
 ### What to work on
-Currently, we need:
-- ~~Fuel system with consumption and refueling~~ ✓ **DONE** (consumption implemented, refueling stations still needed)
-- ~~HUD overlay (fuel gauge, score, timer)~~ ✓ **DONE**
-- Landing pads with passenger pickup/dropoff
-- Proper level design (narrow passages, obstacles)
-- Camera follow system (lock to taxi position)
-- Game states (menu, playing, game over)
-- Sound effects and audio integration
+Currently implemented:
+- ✓ Fuel system with refueling stations
+- ✓ HUD overlay (fuel, score, trip timer, velocity, lives)
+- ✓ Passenger pickup/dropoff system
+- ✓ Goal arrow navigation system
+- ✓ Crash detection and animation
+- ✓ Scoring system with landing quality
+- ✓ Procedural level generation
+- ✓ 3D camera following taxi
 
 ### Next Priority Tasks
-1. **Camera Follow System**: Make camera track taxi position for proper side-scrolling gameplay
-2. **Landing Pads**: Create designated landing zones for pickup/dropoff
-3. **Passenger System**: Implement passenger spawning, pickup, and dropoff mechanics
-4. **Fuel Refueling**: Add fuel stations or pickups to replenish fuel
-5. **Level Design**: Create proper Space Taxi levels with narrow passages and obstacles
-6. **Game States**: Implement menu, pause, and game over screens
+1. **Audio System**: Add sound effects for thrust, crash, pickup, dropoff
+2. **Game States**: Implement menu, pause, and game over screens
+3. **Multiple Levels**: Create handcrafted level designs with progression
+4. **Polish**: Landing dust particles, platform highlights
+5. **Leaderboard**: High score tracking

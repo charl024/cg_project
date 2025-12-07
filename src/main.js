@@ -184,8 +184,8 @@ function set_global_uniforms(view, elapsed) {
 
 // Taxi physics state - 3D movement
 const taxiPhysics = {
-    // Position (stored separately for reliability)
-    position: { x: 0, y: 15, z: -30 },  // Will be synced with taxi spawn position
+    // Position (stored separately for reliability) - will be initialized
+    position: { x: 0, y: 0, z: 0 },
     // 3D velocity
     velocity: { x: 0, y: 0, z: 0 },
     // Rotation
@@ -215,7 +215,30 @@ const gameState = {
     fuelConsumptionRate: 4.0,  // fuel per second when thrusting
     horizontalFuelRate: 2.0,   // fuel per second when using horizontal thrust
     refuelRate: 33.0,          // fuel per second when on refuel station
-    isRefueling: false         // track if currently on refuel station
+    isRefueling: false,        // track if currently on refuel station
+
+    // Passenger system
+    passenger: {
+        hasPassenger: false,
+        pickupTime: 0,          // time when passenger was picked up
+        pickupPlatform: null,   // platform where passenger was picked up
+        dropoffPlatform: null,  // destination platform
+    },
+
+    // Landing system
+    landing: {
+        lastLandingQuality: null,  // "perfect", "good", "ok", "rough", "crash"
+        lastLandingVelocity: 0,
+        showLandingFeedback: false,
+        feedbackTimer: 0,
+    },
+
+    // Crash thresholds
+    crashVelocity: 12.0,       // velocity above this = crash
+    roughLandingVelocity: 8.0, // velocity above this = rough landing
+    okLandingVelocity: 5.0,    // velocity above this = ok landing
+    goodLandingVelocity: 3.0,  // velocity above this = good landing
+    // below goodLandingVelocity = perfect landing
 };
 
 // UI update functions
@@ -223,10 +246,13 @@ function update_ui() {
     // Update money display
     document.getElementById("moneyDisplay").textContent = gameState.money.toFixed(2);
 
-    // Update time display (format as M:SS)
-    const minutes = Math.floor(gameState.time / 60);
-    const seconds = Math.floor(gameState.time % 60);
-    document.getElementById("timeDisplay").textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    // Update velocity display (magnitude of velocity vector)
+    const velocity = Math.sqrt(
+        taxiPhysics.velocity.x ** 2 +
+        taxiPhysics.velocity.y ** 2 +
+        taxiPhysics.velocity.z ** 2
+    );
+    document.getElementById("velocityDisplay").textContent = Math.round(velocity);
 
     // Update fuel bar
     const fuelPercent = (gameState.fuel / gameState.maxFuel) * 100;
@@ -249,6 +275,25 @@ function update_ui() {
             icon.classList.add("lost");
         }
     });
+
+    // Update trip timer
+    const tripTimer = document.getElementById("tripTimer");
+    if (gameState.passenger.hasPassenger) {
+        const tripTime = gameState.time - gameState.passenger.pickupTime;
+        const tripSecs = Math.floor(tripTime);
+        tripTimer.textContent = `${tripSecs}s`;
+        // Color based on time (green to red as time increases)
+        if (tripTime < 15) {
+            tripTimer.style.color = "#00ff00";
+        } else if (tripTime < 25) {
+            tripTimer.style.color = "#ffff00";
+        } else {
+            tripTimer.style.color = "#ff6600";
+        }
+    } else {
+        tripTimer.textContent = "--";
+        tripTimer.style.color = "#888";
+    }
 }
 
 function consume_fuel(dt) {
@@ -274,6 +319,149 @@ function can_use_thrust() {
     return gameState.fuel > 0;
 }
 
+// Calculate landing quality based on impact velocity
+function calculate_landing_quality(impactVelocity) {
+    const absVel = Math.abs(impactVelocity);
+
+    if (absVel >= gameState.crashVelocity) {
+        return "crash";
+    } else if (absVel >= gameState.roughLandingVelocity) {
+        return "rough";
+    } else if (absVel >= gameState.okLandingVelocity) {
+        return "ok";
+    } else if (absVel >= gameState.goodLandingVelocity) {
+        return "good";
+    } else {
+        return "perfect";
+    }
+}
+
+// Get score multiplier based on landing quality
+function get_landing_multiplier(quality) {
+    switch (quality) {
+        case "perfect": return 2.0;
+        case "good": return 1.5;
+        case "ok": return 1.0;
+        case "rough": return 0.5;
+        case "crash": return 0.0;
+        default: return 1.0;
+    }
+}
+
+// Handle a crash - lose a life and reset position (keep passenger!)
+function handle_crash() {
+    gameState.lives--;
+    gameState.landing.lastLandingQuality = "crash";
+
+    // Show crash animation
+    show_crash_animation();
+
+    // Reset taxi position (but keep passenger and trip timer running!)
+    if (gameState.lives > 0) {
+        // Reset to spawn position
+        taxiPhysics.position.x = scene.level.spawn_position.x;
+        taxiPhysics.position.y = scene.level.spawn_position.y;
+        taxiPhysics.position.z = scene.level.spawn_position.z;
+        taxiPhysics.velocity.x = 0;
+        taxiPhysics.velocity.y = 0;
+        taxiPhysics.velocity.z = 0;
+        taxiPhysics.heading = 0;
+    }
+}
+
+// Show crash animation overlay
+function show_crash_animation() {
+    const overlay = document.getElementById("crashOverlay");
+    const text = document.getElementById("crashText");
+
+    // Remove hidden class to show
+    overlay.classList.remove("hidden");
+    text.classList.remove("hidden");
+
+    // Force animation restart by removing and re-adding elements
+    overlay.style.animation = "none";
+    text.style.animation = "none";
+    // Trigger reflow
+    overlay.offsetHeight;
+    text.offsetHeight;
+    overlay.style.animation = "";
+    text.style.animation = "";
+
+    // Hide after animation completes
+    setTimeout(() => {
+        overlay.classList.add("hidden");
+        text.classList.add("hidden");
+    }, 1200);
+}
+
+// Handle landing on a platform
+function handle_landing(landingVelocity, landedPlatform) {
+    const quality = calculate_landing_quality(landingVelocity);
+    gameState.landing.lastLandingQuality = quality;
+    gameState.landing.lastLandingVelocity = landingVelocity;
+
+    if (quality === "crash") {
+        handle_crash();
+        return;
+    }
+
+    // Check if this is a pickup or dropoff platform
+    if (landedPlatform) {
+        if (landedPlatform.isPickupPlatform && !gameState.passenger.hasPassenger) {
+            // Pick up passenger
+            pickup_passenger(landedPlatform);
+        } else if (landedPlatform.isDropoffPlatform && gameState.passenger.hasPassenger) {
+            // Check if this is the correct dropoff location
+            if (landedPlatform === gameState.passenger.dropoffPlatform) {
+                // Deliver passenger
+                deliver_passenger(quality);
+            }
+        }
+    }
+}
+
+// Pick up a passenger from a platform
+function pickup_passenger(platform) {
+    gameState.passenger.hasPassenger = true;
+    gameState.passenger.pickupTime = gameState.time;
+    gameState.passenger.pickupPlatform = platform;
+
+    // Find a random dropoff platform (different from pickup)
+    const dropoffPlatform = scene_builder.get_random_dropoff_platform(platform);
+    gameState.passenger.dropoffPlatform = dropoffPlatform;
+
+    // Update the goal arrow to point to the dropoff location
+    if (dropoffPlatform) {
+        scene_builder.set_goal_arrow_target(dropoffPlatform);
+    }
+
+    console.log("Passenger picked up! Deliver to dropoff platform.");
+}
+
+// Deliver a passenger to their destination
+function deliver_passenger(landingQuality) {
+    const deliveryTime = gameState.time - gameState.passenger.pickupTime;
+    const multiplier = get_landing_multiplier(landingQuality);
+
+    // Base fare calculation: faster delivery = more money
+    // Base fare of $10, bonus for fast delivery, multiplied by landing quality
+    const baseFare = 10.0;
+    const timeBonus = Math.max(0, 30 - deliveryTime) * 0.5; // $0.50 per second under 30s
+    const totalFare = (baseFare + timeBonus) * multiplier;
+
+    gameState.money += totalFare;
+
+    console.log(`Passenger delivered! Time: ${deliveryTime.toFixed(1)}s, Quality: ${landingQuality}, Fare: $${totalFare.toFixed(2)}`);
+
+    // Reset passenger state
+    gameState.passenger.hasPassenger = false;
+    gameState.passenger.pickupPlatform = null;
+    gameState.passenger.dropoffPlatform = null;
+
+    // Set up next passenger (new pickup location)
+    scene_builder.setup_next_passenger();
+}
+
 // Input state for 3D movement
 const inputKeys = {
     forward: false,   // W or ArrowUp
@@ -297,6 +485,9 @@ function register_taxi_input() {
         if (e.key === "r" || e.key === "R") {
             reset_taxi();
         }
+        if (e.key === "n" || e.key === "N") {
+            generate_new_level();
+        }
     });
 
     document.addEventListener("keyup", (e) => {
@@ -315,10 +506,10 @@ function reset_taxi() {
     // Lose a life
     gameState.lives--;
 
-    // Reset taxi position to spawn point
-    taxiPhysics.position.x = 0;
-    taxiPhysics.position.y = 15;
-    taxiPhysics.position.z = -30;
+    // Reset taxi position to dynamic spawn point from level
+    taxiPhysics.position.x = scene.level.spawn_position.x;
+    taxiPhysics.position.y = scene.level.spawn_position.y;
+    taxiPhysics.position.z = scene.level.spawn_position.z;
 
     // Reset velocity
     taxiPhysics.velocity.x = 0;
@@ -330,6 +521,46 @@ function reset_taxi() {
 
     // Reset fuel
     gameState.fuel = gameState.maxFuel;
+}
+
+// Initialize/reset taxi and game state to spawn position
+function initialize_level(spawnPos) {
+    // Set taxi to spawn position
+    taxiPhysics.position.x = spawnPos.x;
+    taxiPhysics.position.y = spawnPos.y;
+    taxiPhysics.position.z = spawnPos.z;
+
+    // Reset velocity
+    taxiPhysics.velocity.x = 0;
+    taxiPhysics.velocity.y = 0;
+    taxiPhysics.velocity.z = 0;
+
+    // Reset heading
+    taxiPhysics.heading = 0;
+
+    // Reset game state
+    gameState.fuel = gameState.maxFuel;
+    gameState.lives = 5;
+    gameState.money = 0;
+
+    // Reset timer
+    startTime = performance.now();
+    gameState.time = 0;
+}
+
+// Generate a new level
+function generate_new_level() {
+    // Regenerate the level and get new spawn position
+    const newSpawnPos = scene_builder.regenerate_level();
+
+    // Reset passenger state for new level
+    gameState.passenger.hasPassenger = false;
+    gameState.passenger.pickupPlatform = null;
+    gameState.passenger.dropoffPlatform = null;
+    gameState.passenger.pickupTime = 0;
+
+    // Initialize with the new spawn position
+    initialize_level(newSpawnPos);
 }
 
 function update_taxi(dt) {
@@ -398,8 +629,10 @@ function update_taxi(dt) {
         taxiPhysics.velocity.z *= scale;
     }
 
-    // Clamp vertical velocity
-    taxiPhysics.velocity.y = Math.max(-taxiPhysics.maxVelocityY, Math.min(taxiPhysics.maxVelocityY, taxiPhysics.velocity.y));
+    // Clamp vertical velocity - only limit upward velocity, allow unlimited falling
+    if (taxiPhysics.velocity.y > taxiPhysics.maxVelocityY) {
+        taxiPhysics.velocity.y = taxiPhysics.maxVelocityY;
+    }
 
     // Model rotation offset (taxi model faces +X, we want it to face forward direction)
     const modelRotOffset = Math.PI / 2;
@@ -420,8 +653,11 @@ function update_taxi(dt) {
 
     // Check for collisions with environment
     let collisions = check_taxi_collisions(scene.taxi, scene.root);
+    const wasOnGround = taxiPhysics.onGround;
+    const impactVelocity = taxiPhysics.velocity.y;  // Store velocity before it gets reset
     taxiPhysics.onGround = false;
     gameState.isRefueling = false;
+    let landedPlatform = null;
 
     // If currently colliding, check which direction to block
     if (collisions.length > 0) {
@@ -437,12 +673,22 @@ function update_taxi(dt) {
                 taxiPhysics.onGround = true;
                 taxiPhysics.velocity.y = 0;
 
-                // Check if this is a refuel station
-                if (collision.node && collision.node.isRefuelStation) {
-                    gameState.isRefueling = true;
+                // Track which platform we landed on
+                if (collision.node) {
+                    landedPlatform = collision.node;
+
+                    // Check if this is a refuel station
+                    if (collision.node.isRefuelStation) {
+                        gameState.isRefueling = true;
+                    }
                 }
             }
         }
+    }
+
+    // Detect landing (transition from air to ground)
+    if (taxiPhysics.onGround && !wasOnGround && impactVelocity < -0.5) {
+        handle_landing(impactVelocity, landedPlatform);
     }
 
     // Try moving in Y direction
@@ -486,6 +732,20 @@ function update_taxi(dt) {
     taxiPhysics.position.x = newX;
     taxiPhysics.position.y = newY;
     taxiPhysics.position.z = newZ;
+
+    // Safety floor: if taxi falls below minimum Y, reset to spawn position
+    const MINIMUM_Y = -20;
+    if (newY < MINIMUM_Y) {
+        taxiPhysics.position.x = scene.level.spawn_position.x;
+        taxiPhysics.position.y = scene.level.spawn_position.y;
+        taxiPhysics.position.z = scene.level.spawn_position.z;
+        taxiPhysics.velocity.x = 0;
+        taxiPhysics.velocity.y = 0;
+        taxiPhysics.velocity.z = 0;
+        newX = taxiPhysics.position.x;
+        newY = taxiPhysics.position.y;
+        newZ = taxiPhysics.position.z;
+    }
 
     // Apply final transform
     applyTaxiTransform(newX, newY, newZ);
@@ -534,6 +794,7 @@ function update_taxi(dt) {
 
 // Main rendering loop
 let lastTime = performance.now();
+let startTime = performance.now();
 
 function render(now) {
     const dt = (now - lastTime) / 1000.0;
@@ -579,8 +840,11 @@ register_input();
 register_taxi_input();
 register_ui();
 
-const startTime = performance.now();
 window.onload = () => {
+    // Generate initial level using the same logic as pressing 'n'
+    // This ensures all resources are loaded before generating the level
+    generate_new_level();
+
     init_camera();
     requestAnimationFrame(render);
 };
