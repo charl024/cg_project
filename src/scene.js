@@ -730,7 +730,7 @@ function create_scene(gl, program, uniforms) {
             null,
             shapes.cube,
             uniforms,
-            goal_arrow_material,
+            goal_arrow_green_material,
             null
         );
 
@@ -741,7 +741,7 @@ function create_scene(gl, program, uniforms) {
             null,
             shapes.cone,
             uniforms,
-            goal_arrow_material,
+            goal_arrow_green_material,
             null
         );
         arrow_tail.isGoalArrow = true;
@@ -787,6 +787,8 @@ function create_scene(gl, program, uniforms) {
         const platform_top = platform_loc.y + (platform_loc.h / 2);
         const arrow_offset_y = 13.0;
 
+        
+
         // Update arrow position
         const newX = platform_loc.x;
         const newY = platform_top + arrow_offset_y;
@@ -824,6 +826,9 @@ function create_scene(gl, program, uniforms) {
     // Set the goal arrow to point to a specific platform (for dropoff)
     function set_goal_arrow_target(platform) {
         move_goal_arrow_to_platform(platform);
+        // Change arrow material to yellow for dropoff target
+        state.level.goalArrow.material = goal_arrow_yellow_material;
+        state.level.goalArrow.children[0].material = goal_arrow_yellow_material;
     }
 
     // Setup next passenger pickup location after delivery
@@ -846,6 +851,9 @@ function create_scene(gl, program, uniforms) {
         state.level.currentDropoffPlatform = null;
 
         move_goal_arrow_to_platform(newPickupPlatform);
+
+        state.level.goalArrow.material = goal_arrow_green_material;
+        state.level.goalArrow.children[0].material = goal_arrow_green_material;
     }
 
     function build_model() {

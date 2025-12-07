@@ -98,13 +98,22 @@ const ball_material = {
     bumpOn: true
 };
 
-const goal_arrow_material = {   
+const goal_arrow_yellow_material = {   
     Kd: 0.1,
     Ks: 0.9,
     alpha: 1.0,
     color: colorconvert(255.0, 179.0, 0.0),
     bumpOn: false
 };
+
+const goal_arrow_green_material = {
+    Kd: 0.1,
+    Ks: 0.9,
+    alpha: 1.0,
+    color: colorconvert(60.0, 255.0, 0.0),
+    bumpOn: false
+};
+
 
 
 function colorconvert(r, g, b) {
