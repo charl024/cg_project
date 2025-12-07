@@ -337,16 +337,17 @@ uniform mat4 uModelViewMatrix;
 uniform mat4 uProjectionMatrix; 
 uniform mat4 uModelTransformationMatrix;
 
-uniform vec3 uLightPos1;
-uniform vec3 uLightPos2;
+// uniform vec3 uLightPos1;
+// uniform vec3 uLightPos2;
 uniform vec3 uMaterialColor;
 
 out vec3 vColor;
 out vec3 vPosition;
 out vec3 vNormal;
+out vec3 vWNormal;
 
-out vec3 vLightPos1;
-out vec3 vLightPos2;
+// out vec3 vLightPos1;
+// out vec3 vLightPos2;
 
 out vec2 vTexCoord;
 
@@ -366,11 +367,11 @@ void main() {
   //vLightPos1 = uLightPos1;
   //vLightPos2 = uLightPos2;
 
-  vec3 light1_view = (uModelViewMatrix * vec4(uLightPos1, 1.0)).xyz;
-  vec3 light2_view = (uModelViewMatrix * vec4(uLightPos2, 1.0)).xyz;
+  //vec3 light1_view = (uModelViewMatrix * vec4(uLightPos1, 1.0)).xyz;
+  //vec3 light2_view = (uModelViewMatrix * vec4(uLightPos2, 1.0)).xyz;
 
-  vLightPos1 = light1_view;
-  vLightPos2 = light2_view;
+  //vLightPos1 = light1_view;
+  //vLightPos2 = light2_view;
 
   vColor = aColor * uMaterialColor;
   vPosition = position.xyz;
@@ -391,8 +392,8 @@ in vec3 vColor;
 in vec3 vPosition;
 in vec3 vNormal;
 
-in vec3 vLightPos1;
-in vec3 vLightPos2; 
+// in vec3 vLightPos1;
+// in vec3 vLightPos2;
 
 in vec2 vTexCoord;
 
@@ -409,6 +410,9 @@ uniform vec3 uViewPos;
 uniform sampler2D uTex;
 uniform float uBumpStrength;
 uniform vec2 uTexScale;
+
+uniform vec3 uLightDir1;
+uniform vec3 uLightDir2;
 
 uniform bool uTexOn;
 uniform bool uBumpOn;
@@ -428,19 +432,18 @@ vec3 compute_bump_normal(sampler2D tex, vec2 tex_coord) {
   return normalize(bump);
 }
 
-vec3 compute_light(vec3 light_pos, vec3 light_color, vec3 normal) {
-  vec3 n_normal = normalize(normal);
-  vec3 light_dir = normalize(light_pos - vPosition);
-  vec3 reflect_dir = reflect(-light_dir, n_normal);
-  vec3 view_dir = normalize(uViewPos - vPosition);
+vec3 compute_light(vec3 light_dir, vec3 light_color, vec3 normal) {
+  vec3 n = normalize(normal);
+  vec3 L = normalize(-light_dir);
+  vec3 V = normalize(uViewPos - vPosition);
+  vec3 R = reflect(-L, n);
 
-  float diff_component = max(dot(n_normal, light_dir), 0.0);
-  vec3 diffuse = uKd * diff_component * light_color;
-
-  float spec_component = pow(max(dot(view_dir, reflect_dir), 0.0), uAlpha);
-  vec3 specular = uKs * spec_component * light_color;
+  float diff = max(dot(n, L), 0.0);
+  float spec = pow(max(dot(V, R), 0.0), uAlpha);
 
   vec3 ambient = uKa * light_color;
+  vec3 diffuse = uKd * diff * light_color;
+  vec3 specular = uKs * spec * light_color;
 
   return ambient + diffuse + specular;
 }
@@ -459,10 +462,9 @@ void main() {
         normal = normalize(TBN * bumpNormal);
     }
   }
-  
 
-  vec3 light1 = compute_light(vLightPos1, uLightColor1, normal);
-  vec3 light2 = compute_light(vLightPos2, uLightColor2, normal);
+  vec3 light1 = compute_light(uLightDir1, uLightColor1, normal);
+  vec3 light2 = compute_light(uLightDir2, uLightColor2, normal);
 
   vec3 total_light = vColor * tex_color.rgb * (light1 + light2);
 

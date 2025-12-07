@@ -6,7 +6,9 @@ function create_scene(gl, program, uniforms) {
         rusty_metal2: create_texture(gl, "src/textures/rusty_metal2_tex.jpg"),
         concrete_floor: create_texture(gl, "src/textures/concrete_floor_tex.jpg"),
         grass_tex: create_texture(gl, "src/textures/grass_tex.png"),
-        red_brick_tex: create_texture(gl, "src/textures/red_brick_tex.png")
+        red_brick_tex: create_texture(gl, "src/textures/red_brick_tex.png"),
+        fabric_black_tex: create_texture(gl, "src/textures/fabric_black_tex.jpg"),
+        snow_tex: create_texture(gl, "src/textures/snow_tex.jpg")
     };
 
     const shapes = {
@@ -23,10 +25,12 @@ function create_scene(gl, program, uniforms) {
         dt: 0.0,
         time: 0.0,
         lights: {
-            pos1: [30, 40, 30],   // High above for 3D area
-            pos2: [-30, 40, -30],
-            color1: [0.9, 0.9, 0.85],  // Warm sunlight
-            color2: [0.5, 0.5, 0.6],   // Cool fill light
+            // pos1: [30, 40, 30],   // High above for 3D area
+            // pos2: [-30, 40, -30],
+            dir1: norm([ -0.3, -1.0, -0.2 ]),
+            dir2: norm([ 0.2, -1.0, 0.4 ]),
+            color1: [0.7, 0.7, 0.65],
+            color2: [0.3, 0.3, 0.4],
         },
         root: null,
         taxi: null,
@@ -301,7 +305,9 @@ function create_scene(gl, program, uniforms) {
     const MAX_SPAWN_HEIGHT = 15;
 
     function generate_level() {
-        return generate_brick_tower_level();
+        
+        // return generate_brick_tower_level();
+        return generate_mountain_level();
     }
 
     function generate_brick_tower_level() {
@@ -328,7 +334,9 @@ function create_scene(gl, program, uniforms) {
             grid_length,
             cell_width,
             cell_length,
-            freq
+            freq,
+            grass_material,
+            textures.grass_tex
         );
 
         // Step 2: Select taxi spawn position (once per level), avoiding refuel tower
@@ -384,17 +392,17 @@ function create_scene(gl, program, uniforms) {
 
         const base = create_level_root();
 
-        // Taxi spawn point
-        const spawnX = 0;
-        const spawnZ = -60;
+        state.lights
 
-        // Giant mountains
         let max_hill_height = 100;
-        let grid_width = 50;
-        let grid_length = 50;
+        let grid_width = 25;
+        let grid_length = 25;
         let cell_width = (2 * BASE_WIDTH) / grid_width;
         let cell_length = (2 * BASE_LENGTH) / grid_length;
-        let freq = 0.1;
+        let freq = 0.02;
+
+        const refuelX = 10;
+        const refuelZ = -25;
 
         generate_perlin_terrain(
             base,
@@ -403,11 +411,26 @@ function create_scene(gl, program, uniforms) {
             grid_length,
             cell_width,
             cell_length,
-            freq
+            freq,
+            snow_material,
+            textures.snow_tex
         );
 
-        const refuelX = 10;
-        const refuelZ = -25;
+        if (!state.level.spawn_position) {
+            state.level.spawn_position = select_taxi_spawn_position(
+                grid_width,
+                grid_length,
+                cell_width,
+                cell_length,
+                freq,
+                max_hill_height,
+                refuelX,
+                refuelZ
+            );
+        }
+
+        const spawnX = state.level.spawn_position.x;
+        const spawnZ = state.level.spawn_position.z;
 
         create_refuel_tower(
             base,
@@ -435,11 +458,30 @@ function create_scene(gl, program, uniforms) {
             max_hill_height
         );
 
+        console.log("test");
+        console.log(state.level.platforms.length); // this returns 0?
+
+        if (state.level.platforms.length > 0) {
+            const idx = Math.floor(Math.random() * state.level.platforms.length);
+            const p = state.level.platforms[idx];
+            const loc = p.platformLocation;
+
+            const top = loc.y + (loc.h / 2);
+
+            state.level.spawn_position = {
+                x: loc.x,
+                y: top + 7.0,
+                z: loc.z
+            };
+            console.log(top);
+        }
+
         let goal_arrow = create_goal_arrow();
         if (goal_arrow) add_children(base, goal_arrow);
 
         return base;
     }
+
 
 
     // All helper functions for level generation
@@ -546,7 +588,7 @@ function create_scene(gl, program, uniforms) {
             zmax: BASE_LENGTH - 6
         };
 
-        let points = get_spaced_points(bounds, 18, 40, 20, false);
+        let points = get_spaced_points(bounds, 18, 40, 10, false);
 
         for (let point of points) {
 
@@ -576,22 +618,26 @@ function create_scene(gl, program, uniforms) {
             let p = create_model_node(
                 {x: platform_loc.x, y: platform_loc.y, z: platform_loc.z},
                 {x: 0.0, y: 0.0, z: 0.0},
-                {x: 4.0, y: platformHeight, z: 4.0},
+                {x: 4.0, y: 1.0, z: 4.0},
                 null,
                 shapes.cube,
                 uniforms,
-                metal_red_material,
-                textures.red_brick_tex
+                blue_material,
+                null
             );
 
-            p.material.textureScale = [1.0, platformHeight / 2.0];
+            p.material.textureScale = [1.0, 1.0 / 2.0];
+
+            p.platformLocation = platform_loc;
+            p.isPlatform = true;
+            state.level.platforms.push(p);
 
             state.level.platform_locs.push(platform_loc);
             add_children(base, p);
         }
     }
 
-    function generate_perlin_terrain(base, max_hill_height, grid_width, grid_length, cell_width, cell_length, freq) {
+    function generate_perlin_terrain(base, max_hill_height, grid_width, grid_length, cell_width, cell_length, freq, material, texture) {
         for (let z = 0; z < grid_length; z++) {
             for (let x = 0; x < grid_width; x++) {
 
@@ -609,9 +655,15 @@ function create_scene(gl, program, uniforms) {
                     null,
                     shapes.cube,
                     uniforms,
-                    grass_material,
-                    textures.grass_tex
+                    material,
+                    texture
                 );
+
+                let column_height = y + 1;
+
+                let vertical_tiles = column_height / 8.0;
+
+                hill.material.textureScale = [cell_width / 4.0, vertical_tiles];
 
                 add_children(base, hill);
             }
@@ -785,7 +837,7 @@ function create_scene(gl, program, uniforms) {
         const arrow = state.level.goalArrow;
         const platform_loc = platform.platformLocation;
         const platform_top = platform_loc.y + (platform_loc.h / 2);
-        const arrow_offset_y = 13.0;
+        const arrow_offset_y = 10.0;
 
         
 

@@ -33,6 +33,14 @@ const black_plastic_material = {
     bumpOn: true
 }
 
+const blue_material = {
+    Kd: 0.2,
+    Ks: 0.05,
+    alpha: 50.0,
+    color: colorconvert(130,130,235),
+    bumpOn: true
+}
+
 const wood_material = {   
     Kd: 0.2,
     Ks: 0.1,
@@ -114,6 +122,13 @@ const goal_arrow_green_material = {
     bumpOn: false
 };
 
+const snow_material = {
+    Kd: 0.3,
+    Ks: 0.3,
+    alpha: 1.0,
+    color: colorconvert(240.0, 240.0, 240.0),
+    bumpOn: false
+};
 
 
 function colorconvert(r, g, b) {
