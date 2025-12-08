@@ -290,20 +290,28 @@ function create_scene(gl, program, uniforms) {
         return taxiRoot;
     }
 
-    const MAX_LEVELS = 3;
+    const MAX_LEVELS = 2;
     const BASE_WIDTH = 50;
     const BASE_HEIGHT = 20;
     const BASE_LENGTH = 50;
     const MAX_PLATFORMS = 40;
     const MAX_SPAWN_HEIGHT = 15;
-    const arrow_offset_y = 7.0;
+    const arrow_offset_y = 10.0;
 
     function generate_level() {
 
+        let lvl = Math.ceil(Math.random() * MAX_LEVELS);
+
+        switch (lvl) {
+            case 1:
+                return generate_mountain_level();
+            case 2:
+                return generate_brick_tower_level();
         
-        
-        // return generate_brick_tower_level();
-        return generate_mountain_level();
+            default:
+                return generate_brick_tower_level();
+        }
+            
     }
 
     function generate_brick_tower_level() {
