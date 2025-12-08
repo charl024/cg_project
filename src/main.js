@@ -243,6 +243,11 @@ const gameState = {
     okLandingVelocity: 5.0,    // velocity above this = ok landing
     goodLandingVelocity: 3.0,  // velocity above this = good landing
     // below goodLandingVelocity = perfect landing
+
+    // Level progression
+    deliverCount: 0,
+    deliverThreshold: 2,
+    currentLevel: 1,
 };
 
 // UI update functions
@@ -456,6 +461,13 @@ function deliver_passenger(landingQuality) {
     gameState.money += totalFare;
 
     console.log(`Passenger delivered! Time: ${deliveryTime.toFixed(1)}s, Quality: ${landingQuality}, Fare: $${totalFare.toFixed(2)}`);
+    
+    // count delivery
+    gameState.deliverCount++;
+
+    if (gameState.deliverCount >= gameState.deliverThreshold) {
+        go_to_next_level();
+    }
 
     // Reset passenger state
     gameState.passenger.hasPassenger = false;
@@ -464,6 +476,38 @@ function deliver_passenger(landingQuality) {
 
     // Set up next passenger (new pickup location)
     scene_builder.setup_next_passenger();
+}
+
+// Generate a new level
+function generate_new_level() {
+    // Regenerate the level and get new spawn position
+    const newSpawnPos = scene_builder.regenerate_level();
+
+    // Reset passenger state for new level
+    gameState.passenger.hasPassenger = false;
+    gameState.passenger.pickupPlatform = null;
+    gameState.passenger.dropoffPlatform = null;
+    gameState.passenger.pickupTime = 0;
+
+    // Initialize with the new spawn position
+    initialize_level(newSpawnPos);
+    update_camera(0);
+}
+
+function go_to_next_level() {
+    // advance to next level
+    gameState.currentLevel++;
+    gameState.deliverCount = 0;
+
+    console.log("Advancing to next level:", gameState.currentLevel);
+
+    // every two levels, increase deliver threshold (only after level 2!)
+    if (gameState.currentLevel % 2 == 0 && gameState.currentLevel != 2) {
+        gameState.deliverThreshold += 1;
+        console.log(gameState.deliverThreshold);
+    }
+
+    generate_new_level();
 }
 
 // Input state for 3D movement
@@ -550,21 +594,6 @@ function initialize_level(spawnPos) {
     // Reset timer
     startTime = performance.now();
     gameState.time = 0;
-}
-
-// Generate a new level
-function generate_new_level() {
-    // Regenerate the level and get new spawn position
-    const newSpawnPos = scene_builder.regenerate_level();
-
-    // Reset passenger state for new level
-    gameState.passenger.hasPassenger = false;
-    gameState.passenger.pickupPlatform = null;
-    gameState.passenger.dropoffPlatform = null;
-    gameState.passenger.pickupTime = 0;
-
-    // Initialize with the new spawn position
-    initialize_level(newSpawnPos);
 }
 
 function update_taxi(dt) {
@@ -799,7 +828,10 @@ let lastTime = performance.now();
 let startTime = performance.now();
 
 function render(now) {
-    const dt = (now - lastTime) / 1000.0;
+    let dt = (now - lastTime) / 1000.0;
+
+    if (dt > 0.05) dt = 0.016;
+
     const elapsed = (now - startTime) / 1000.0;
     lastTime = now;
 

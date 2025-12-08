@@ -37,16 +37,15 @@ function create_scene(gl, program, uniforms) {
         level: {
             platform_locs: [],
             goal_locs: [],
-            spawn_position: null,  // Dynamic taxi spawn position per level
-            platforms: [],         // Array of platform nodes for pickup/dropoff
-            goalArrow: null,       // Reference to the goal arrow node
+            spawn_position: null, 
+            platforms: [],        
+            goalArrow: null,    
             currentPickupPlatform: null,
             currentDropoffPlatform: null,
         }
     };
 
     function build_taxi(spawnPos) {
-        // Taxi root node - positioned at dynamic spawn location from level generation
         const taxiRoot = create_model_node(
             {x: spawnPos.x, y: spawnPos.y, z: spawnPos.z},
             {x: 0.0, y: 0.0, z: 0.0},
@@ -58,7 +57,6 @@ function create_scene(gl, program, uniforms) {
             null
         );
 
-        // Main body - yellow taxi body
         const body = create_model_node(
             {x: 0.0, y: 0.0, z: 0.0},
             {x: 0.0, y: 0.0, z: 0.0},
@@ -78,7 +76,6 @@ function create_scene(gl, program, uniforms) {
         );
         add_children(taxiRoot, body);
 
-        // Cabin/roof - smaller on top
         const cabin = create_model_node(
             {x: 0.0, y: 0.5, z: 0.0},
             {x: 0.0, y: 0.0, z: 0.0},
@@ -98,7 +95,6 @@ function create_scene(gl, program, uniforms) {
         );
         add_children(taxiRoot, cabin);
 
-        // Windshield - front
         const windshield = create_model_node(
             {x: 0.5, y: 0.5, z: 0.0},
             {x: 0.0, y: 0.0, z: 0.0},
@@ -118,7 +114,6 @@ function create_scene(gl, program, uniforms) {
         );
         add_children(taxiRoot, windshield);
 
-        // Taxi sign on roof
         const taxiSign = create_model_node(
             {x: 0.0, y: 0.95, z: 0.0},
             {x: 0.0, y: 0.0, z: 0.0},
@@ -281,17 +276,15 @@ function create_scene(gl, program, uniforms) {
         add_children(taxiRoot, leftFlame);
         add_children(taxiRoot, rightFlame);
 
-        // Store references to flame nodes for toggling visibility
         taxiRoot.thrustFlame1 = thrustFlame1;
         taxiRoot.thrustFlame2 = thrustFlame2;
         taxiRoot.leftFlame = leftFlame;
         taxiRoot.rightFlame = rightFlame;
 
-        // Set custom bounding box for taxi that only covers the body, not the flames
         taxiRoot.bounding = {
             type: "box",
-            min: [-1.0, -0.5, -0.5],  // Covers main body and wheels
-            max: [ 1.0,  1.0,  0.5]   // Doesn't include extended flames
+            min: [-1.0, -0.5, -0.5],
+            max: [ 1.0,  1.0,  0.5]
         };
 
         return taxiRoot;
@@ -303,8 +296,11 @@ function create_scene(gl, program, uniforms) {
     const BASE_LENGTH = 50;
     const MAX_PLATFORMS = 40;
     const MAX_SPAWN_HEIGHT = 15;
+    const arrow_offset_y = 7.0;
 
     function generate_level() {
+
+        
         
         // return generate_brick_tower_level();
         return generate_mountain_level();
@@ -458,9 +454,6 @@ function create_scene(gl, program, uniforms) {
             max_hill_height
         );
 
-        console.log("test");
-        console.log(state.level.platforms.length); // this returns 0?
-
         if (state.level.platforms.length > 0) {
             const idx = Math.floor(Math.random() * state.level.platforms.length);
             const p = state.level.platforms[idx];
@@ -470,10 +463,9 @@ function create_scene(gl, program, uniforms) {
 
             state.level.spawn_position = {
                 x: loc.x,
-                y: top + 7.0,
+                y: top + 4.0,
                 z: loc.z
             };
-            console.log(top);
         }
 
         let goal_arrow = create_goal_arrow();
@@ -529,11 +521,9 @@ function create_scene(gl, program, uniforms) {
             gx = gxMin + Math.floor(Math.random() * (gxMax - gxMin + 1));
             gz = gzMin + Math.floor(Math.random() * (gzMax - gzMin + 1));
 
-            // Clamp to valid range
             gx = Math.max(0, Math.min(grid_width - 1, gx));
             gz = Math.max(0, Math.min(grid_length - 1, gz));
 
-            // Calculate world position at CENTER of this grid cell (where terrain cube is)
             spawnX = -BASE_WIDTH + gx * cell_width + cell_width / 2;
             spawnZ = -BASE_LENGTH + gz * cell_length + cell_length / 2;
 
@@ -548,17 +538,8 @@ function create_scene(gl, program, uniforms) {
             attempts++;
         } while (attempts < maxAttempts);
 
-        // Get terrain height at this grid cell
         terrainHeight = sample_terrain_height(gx, gz, freq, max_hill_height);
-
-        // Calculate ground level (top of terrain cube)
-        // Terrain cube center is at: terrainHeight / 2 - 5
-        // Terrain cube height is: terrainHeight + 1
-        // So top of cube is: (terrainHeight / 2 - 5) + (terrainHeight + 1) / 2 = terrainHeight - 4.5
         const groundLevel = terrainHeight - 4.5;
-
-        // Taxi bounding box has bottom at -0.5 relative to taxi center
-        // Place taxi center so bottom is ~2 units above ground for safe clearance
         const spawnY = groundLevel + 0.5 + 5.0;
 
         return { x: spawnX, y: spawnY, z: spawnZ };
@@ -743,11 +724,11 @@ function create_scene(gl, program, uniforms) {
             );
 
             platform.material.textureScale = [1.0, towerHeight / 2.0];
-            platform.platformLocation = platform_loc;  // Store location data on node
-            platform.isPlatform = true;  // Mark as a platform for passenger system
+            platform.platformLocation = platform_loc;
+            platform.isPlatform = true;
 
             state.level.platform_locs.push(platform_loc);
-            state.level.platforms.push(platform);  // Track platform node
+            state.level.platforms.push(platform);
 
             add_children(base, platform);
         }
@@ -765,11 +746,8 @@ function create_scene(gl, program, uniforms) {
         let platform_loc = pickupPlatform.platformLocation;
         let platform_top = platform_loc.y + (platform_loc.h / 2);
 
-        // Mark this platform as the pickup location
         pickupPlatform.isPickupPlatform = true;
         state.level.currentPickupPlatform = pickupPlatform;
-
-        let arrow_offset_y = 13.0;
 
         const arrow_tail = create_model_node(
             {
@@ -836,10 +814,7 @@ function create_scene(gl, program, uniforms) {
 
         const arrow = state.level.goalArrow;
         const platform_loc = platform.platformLocation;
-        const platform_top = platform_loc.y + (platform_loc.h / 2);
-        const arrow_offset_y = 10.0;
-
-        
+        const platform_top = platform_loc.y + (platform_loc.h / 2);        
 
         // Update arrow position
         const newX = platform_loc.x;
@@ -955,7 +930,6 @@ function create_scene(gl, program, uniforms) {
         return state.level.spawn_position;
     }
 
-    // Don't build model here - let main.js initialize it
     update_lights();
 
     return {
