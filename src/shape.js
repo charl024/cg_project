@@ -59,6 +59,9 @@ class Shape {
     }
 }
 
+// Global texture registry for retro mode filtering
+window.registeredTextures = window.registeredTextures || [];
+
 function create_texture(gl, tex_src) {
     if (!tex_src) return null;
 
@@ -70,6 +73,9 @@ function create_texture(gl, tex_src) {
         isVideo: false,
         video: null
     };
+
+    // Register texture for filtering toggle
+    window.registeredTextures.push(texture);
 
     if (typeof tex_src === "string") {
         const tex_img = new Image();

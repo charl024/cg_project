@@ -12,7 +12,84 @@ Most of the stuff where you add an object to the scene is in `scene.js`, so star
 
 ### Changelog
 
-#### Latest Session Changes (Passenger & Crash System)
+#### Latest Session Changes (Visual Effects & Level System)
+
+**Retro CRT Visual Mode** (`index.html`, `src/main.js`, `src/shape.js`):
+- **Press C** to toggle combined retro + CRT effects
+- Effects are properly chained: Scene → Retro Shader → CRT Shader → Screen
+- Uses dual framebuffer system for effect chaining
+
+**CRT Shader Effects** (`index.html`):
+- Screen curvature (barrel distortion)
+- Chromatic aberration (RGB color separation)
+- Scanlines (horizontal dark lines)
+- Phosphor mask (vertical lines)
+- Vignette (darkened corners)
+- Subtle flicker effect
+- Green tint for authentic CRT feel
+
+**Retro Shader Effects** (`index.html`):
+- **Pixelation**: Renders at effective lower resolution (4x4 pixel blocks)
+- **Color Posterization**: Reduces to 16 color levels per channel
+- **Bloom/Glow**: Bright pixels (>60% brightness) emit soft glow
+- **Retro Color Grading**:
+  - 1.4x saturation boost
+  - Warm color shift (more orange/red, less blue)
+  - Increased contrast
+  - Crushed blacks (like old displays)
+- **Nearest-Neighbor Textures**: All game textures switch to crispy pixel filtering
+
+**CSS CRT Overlay** (`index.html`):
+- Scanlines overlay that covers both canvas AND UI elements
+- Vignette effect over entire game area
+- CRT bezel styling with rounded corners and green glow
+- Perspective transform for subtle 3D CRT shape
+
+**Increased Canvas Size**:
+- Upgraded from 1000x600 to **1280x720** (720p widescreen)
+- UI bar width updated to match
+
+**Taxi Spawning System Improvements** (`src/scene.js`):
+- New `get_terrain_top_y()`: Accurately calculates terrain surface height
+- New `analyze_spawn_cell()`: Evaluates cells for spawn suitability
+  - Checks terrain height, refuel tower distance, spawn zone validity
+  - Detects nearby platforms and their surface heights
+- New `select_spawn_platform()`: Filters platforms for mountain level spawning
+  - Must be >15 units from refuel tower
+  - Must have >8 units spacing from other platforms (avoids cramped spots)
+  - Prefers interior platforms (not near map edges)
+- Updated `select_taxi_spawn_position()`: Uses cell analysis for consistent spawning
+  - Spawns at `surface + 1.5` units (was inconsistent `+ 5.5`)
+- **Mountain level**: Now spawns on validated platforms instead of random selection
+- **Brick tower level**: Spawns on terrain with proper height calculation
+
+**Level Transition System** (`src/main.js`, `index.html`):
+- **Level Advance Animation**:
+  - Green overlay with "LEVEL X" text in large glowing font
+  - Subtext shows "+1 LIFE" or "FUEL RESTORED" in yellow
+  - 2-second animation with scale and fade effects
+- **Bonus Life**: Awards +1 life when advancing if player has <5 lives
+- **Fuel Reset**: Automatically refills fuel on level change
+- **Taxi Freeze**: Velocity zeroed during transition to prevent awkward movement
+- **1.5s Delay**: Level generation delayed so player can read the message
+- **Seamless Spawn**: Taxi placed at validated spawn position on new level
+- **Progress Preserved**: Money and remaining lives carry over between levels
+
+**New Functions** (`src/main.js`):
+- `reset_taxi_to_spawn()`: Resets taxi physics only (position, velocity, heading)
+- `initialize_next_level()`: For level progression (preserves money/lives, resets fuel)
+- `show_level_advance_animation()`: Displays level advance popup with bonus info
+- `renderRetroEffect()`: Applies retro post-processing shader
+- `renderCRTEffect()`: Applies CRT post-processing shader
+- `setTextureFiltering()`: Toggles between nearest-neighbor and linear filtering
+
+**Texture Registry System** (`src/shape.js`):
+- `window.registeredTextures`: Global array tracking all game textures
+- Enables runtime texture filtering changes for retro mode
+
+---
+
+#### Previous Session Changes (Passenger & Crash System)
 
 **Passenger Pickup/Dropoff System** (`src/main.js`, `src/scene.js`):
 - Complete passenger delivery gameplay loop implemented
@@ -304,8 +381,9 @@ Most of the stuff where you add an object to the scene is in `scene.js`, so star
 - [x] Refuel station tower
 - [x] Level regeneration system (press N)
 - [x] Dynamic spawn position selection
+- [x] Validated spawn positioning (cell analysis, platform filtering)
 - [ ] Multiple handcrafted level designs
-- [ ] Level progression system
+- [x] Level progression system (advance after delivery threshold)
 
 ### 4. Passenger & Objective System
 - [x] Passenger spawn locations (landing pads with arrow)
@@ -321,7 +399,7 @@ Most of the stuff where you add an object to the scene is in `scene.js`, so star
 - [x] Playing state
 - [ ] Pause state
 - [ ] Game over state
-- [ ] Level complete state
+- [x] Level complete state (level advance animation with bonus display)
 - [x] HUD overlay showing:
   - [x] Fuel gauge (visual bar with color gradient, blue when refueling)
   - [x] Score/Money display
@@ -342,11 +420,18 @@ Most of the stuff where you add an object to the scene is in `scene.js`, so star
 - [x] Particle effects for:
   - [x] Taxi thrust/exhaust - Flame cones (back + side thrusters)
   - [x] Crash effect - Red/orange flash with text
+  - [x] Level advance effect - Green flash with "LEVEL X" text
   - [ ] Landing dust
 - [x] Visual feedback for fuel low warning - Fuel gauge color gradient
 - [x] Smooth taxi rotation animation
 - [x] Goal arrow bobbing/rotation animation
 - [ ] Landing pad highlight/animation
+- [x] **Retro CRT Mode** (Press C to toggle):
+  - [x] CRT shader (curvature, chromatic aberration, scanlines, flicker)
+  - [x] Retro shader (pixelation, posterization, bloom, color grading)
+  - [x] Nearest-neighbor texture filtering
+  - [x] CSS overlay for scanlines over UI
+  - [x] Dual framebuffer effect chaining
 
 ### 8. Audio
 - [ ] Sound effects:
@@ -385,14 +470,21 @@ python3 -m http.server 8000
 Then open your browser to: `http://localhost:8000`
 
 ### Controls
+
+**Movement:**
 - **W / Arrow Up**: Move forward (in facing direction)
 - **S / Arrow Down**: Move backward
 - **A / Arrow Left**: Rotate taxi left
 - **D / Arrow Right**: Rotate taxi right
 - **Space / Shift**: Vertical thrust (fly upward)
+
+**Game Controls:**
 - **R**: Reset taxi to spawn (costs 1 life)
 - **N**: Generate new random level
 - **Mouse Wheel**: Zoom camera in/out
+
+**Visual Effects:**
+- **C**: Toggle Retro CRT Mode (pixelation + CRT effects combined)
 
 ### UI System
 
@@ -471,10 +563,13 @@ Currently implemented:
 - ✓ Scoring system with landing quality
 - ✓ Procedural level generation
 - ✓ 3D camera following taxi
+- ✓ **Level progression system** (advance after deliveries, bonus life, transition animation)
+- ✓ **Retro CRT visual mode** (pixelation, posterization, bloom, CRT effects)
+- ✓ **Validated taxi spawning** (cell analysis, platform filtering, consistent positioning)
 
 ### Next Priority Tasks
 1. **Audio System**: Add sound effects for thrust, crash, pickup, dropoff
 2. **Game States**: Implement menu, pause, and game over screens
-3. **Multiple Levels**: Create handcrafted level designs with progression
+3. **Multiple Levels**: Create handcrafted level designs
 4. **Polish**: Landing dust particles, platform highlights
 5. **Leaderboard**: High score tracking

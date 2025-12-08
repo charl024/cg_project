@@ -32,6 +32,157 @@ const fragment_shader_src = document.getElementById("fragment-shader").textConte
 const program = create_program(gl, vertex_shader_src, fragment_shader_src);
 gl.useProgram(program);
 
+// CRT post-processing setup
+const crt_vertex_src = document.getElementById("crt-vertex-shader").textContent.trim();
+const crt_fragment_src = document.getElementById("crt-fragment-shader").textContent.trim();
+const crtProgram = create_program(gl, crt_vertex_src, crt_fragment_src);
+
+// Retro post-processing setup (uses same vertex shader as CRT)
+const retro_fragment_src = document.getElementById("retro-fragment-shader").textContent.trim();
+const retroProgram = create_program(gl, crt_vertex_src, retro_fragment_src);
+
+// Effect states
+let crtEnabled = false;
+let retroEnabled = false;
+
+// Use global texture registry from shape.js
+// window.registeredTextures is populated by create_texture()
+
+// Framebuffers for post-processing (two for effect chaining)
+let framebuffer, renderTexture, depthBuffer;
+let framebuffer2, renderTexture2;
+
+function setupFramebuffer() {
+    // Primary framebuffer (scene render target)
+    framebuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+
+    renderTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, renderTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, canvas.width, canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, renderTexture, 0);
+
+    depthBuffer = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, canvas.width, canvas.height);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthBuffer);
+
+    // Secondary framebuffer (for effect chaining)
+    framebuffer2 = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer2);
+
+    renderTexture2 = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, renderTexture2);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, canvas.width, canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, renderTexture2, 0);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
+// Full-screen quad for post-processing
+let quadVAO, quadVBO;
+
+function setupQuad() {
+    const quadVertices = new Float32Array([
+        // positions   // texCoords
+        -1.0,  1.0,    0.0, 1.0,
+        -1.0, -1.0,    0.0, 0.0,
+         1.0, -1.0,    1.0, 0.0,
+
+        -1.0,  1.0,    0.0, 1.0,
+         1.0, -1.0,    1.0, 0.0,
+         1.0,  1.0,    1.0, 1.0
+    ]);
+
+    quadVAO = gl.createVertexArray();
+    quadVBO = gl.createBuffer();
+
+    gl.bindVertexArray(quadVAO);
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadVBO);
+    gl.bufferData(gl.ARRAY_BUFFER, quadVertices, gl.STATIC_DRAW);
+
+    const posLoc = gl.getAttribLocation(crtProgram, "aPosition");
+    const texLoc = gl.getAttribLocation(crtProgram, "aTexCoord");
+
+    gl.enableVertexAttribArray(posLoc);
+    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 16, 0);
+    gl.enableVertexAttribArray(texLoc);
+    gl.vertexAttribPointer(texLoc, 2, gl.FLOAT, false, 16, 8);
+
+    gl.bindVertexArray(null);
+}
+
+function renderCRTEffect(time, useSecondaryTexture = false) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.disable(gl.DEPTH_TEST);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.useProgram(crtProgram);
+
+    gl.activeTexture(gl.TEXTURE0);
+    // Read from secondary texture if chained from retro effect
+    gl.bindTexture(gl.TEXTURE_2D, useSecondaryTexture ? renderTexture2 : renderTexture);
+    gl.uniform1i(gl.getUniformLocation(crtProgram, "uScreen"), 0);
+    gl.uniform1f(gl.getUniformLocation(crtProgram, "uTime"), time);
+    gl.uniform2f(gl.getUniformLocation(crtProgram, "uResolution"), canvas.width, canvas.height);
+
+    gl.bindVertexArray(quadVAO);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.bindVertexArray(null);
+
+    // Restore main program
+    gl.useProgram(program);
+    gl.enable(gl.DEPTH_TEST);
+}
+
+function renderRetroEffect(time, outputToFramebuffer = false) {
+    // Output to secondary framebuffer if chaining, otherwise to screen
+    gl.bindFramebuffer(gl.FRAMEBUFFER, outputToFramebuffer ? framebuffer2 : null);
+    gl.disable(gl.DEPTH_TEST);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.useProgram(retroProgram);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, renderTexture);
+    gl.uniform1i(gl.getUniformLocation(retroProgram, "uScreen"), 0);
+    gl.uniform1f(gl.getUniformLocation(retroProgram, "uTime"), time);
+    gl.uniform2f(gl.getUniformLocation(retroProgram, "uResolution"), canvas.width, canvas.height);
+
+    gl.bindVertexArray(quadVAO);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.bindVertexArray(null);
+
+    // Restore main program
+    gl.useProgram(program);
+    gl.enable(gl.DEPTH_TEST);
+}
+
+// Toggle texture filtering between nearest (pixelated) and linear (smooth)
+function setTextureFiltering(useNearest) {
+    const minFilter = useNearest ? gl.NEAREST : gl.LINEAR_MIPMAP_LINEAR;
+    const magFilter = useNearest ? gl.NEAREST : gl.LINEAR;
+
+    for (const tex of window.registeredTextures) {
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, minFilter);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, magFilter);
+    }
+    gl.bindTexture(gl.TEXTURE_2D, null);
+}
+
+// Initialize CRT post-processing
+setupFramebuffer();
+setupQuad();
+
 // Uniform locations for shapes
 const uniforms = {
     uMTM: gl.getUniformLocation(program, "uModelTransformationMatrix"),
@@ -403,6 +554,41 @@ function show_crash_animation() {
     }, 1200);
 }
 
+// Show level advance animation overlay
+function show_level_advance_animation(level, bonusLife) {
+    const overlay = document.getElementById("levelOverlay");
+    const text = document.getElementById("levelText");
+    const subtext = document.getElementById("levelSubtext");
+
+    // Update text content
+    text.textContent = `LEVEL ${level}`;
+    subtext.textContent = bonusLife ? "+1 LIFE" : "FUEL RESTORED";
+
+    // Remove hidden class to show
+    overlay.classList.remove("hidden");
+    text.classList.remove("hidden");
+    subtext.classList.remove("hidden");
+
+    // Force animation restart
+    overlay.style.animation = "none";
+    text.style.animation = "none";
+    subtext.style.animation = "none";
+    // Trigger reflow
+    overlay.offsetHeight;
+    text.offsetHeight;
+    subtext.offsetHeight;
+    overlay.style.animation = "";
+    text.style.animation = "";
+    subtext.style.animation = "";
+
+    // Hide after animation completes
+    setTimeout(() => {
+        overlay.classList.add("hidden");
+        text.classList.add("hidden");
+        subtext.classList.add("hidden");
+    }, 2000);
+}
+
 // Handle landing on a platform
 function handle_landing(landingVelocity, landedPlatform) {
     const quality = calculate_landing_quality(landingVelocity);
@@ -478,7 +664,7 @@ function deliver_passenger(landingQuality) {
     scene_builder.setup_next_passenger();
 }
 
-// Generate a new level
+// Generate a new level (for level progression, preserves money/lives)
 function generate_new_level() {
     // Regenerate the level and get new spawn position
     const newSpawnPos = scene_builder.regenerate_level();
@@ -489,25 +675,44 @@ function generate_new_level() {
     gameState.passenger.dropoffPlatform = null;
     gameState.passenger.pickupTime = 0;
 
-    // Initialize with the new spawn position
-    initialize_level(newSpawnPos);
+    // Initialize taxi at new spawn (preserves money and lives)
+    initialize_next_level(newSpawnPos);
     update_camera(0);
 }
 
 function go_to_next_level() {
-    // advance to next level
+    // Advance to next level
     gameState.currentLevel++;
     gameState.deliverCount = 0;
 
     console.log("Advancing to next level:", gameState.currentLevel);
 
-    // every two levels, increase deliver threshold (only after level 2!)
+    // Every two levels, increase deliver threshold (only after level 2!)
     if (gameState.currentLevel % 2 == 0 && gameState.currentLevel != 2) {
         gameState.deliverThreshold += 1;
-        console.log(gameState.deliverThreshold);
+        console.log("New delivery threshold:", gameState.deliverThreshold);
     }
 
-    generate_new_level();
+    // Add bonus life if under max lives
+    const bonusLife = gameState.lives < 5;
+    if (bonusLife) {
+        gameState.lives++;
+        console.log("Bonus life awarded! Lives:", gameState.lives);
+    }
+
+    // Show level advance animation
+    show_level_advance_animation(gameState.currentLevel, bonusLife);
+
+    // Freeze taxi during transition
+    const savedVelocity = { ...taxiPhysics.velocity };
+    taxiPhysics.velocity.x = 0;
+    taxiPhysics.velocity.y = 0;
+    taxiPhysics.velocity.z = 0;
+
+    // Delay level generation to let animation play
+    setTimeout(() => {
+        generate_new_level();
+    }, 1500);
 }
 
 // Input state for 3D movement
@@ -535,6 +740,21 @@ function register_taxi_input() {
         }
         if (e.key === "n" || e.key === "N") {
             generate_new_level();
+        }
+        if (e.key === "c" || e.key === "C") {
+            // Toggle both retro and CRT effects together
+            const newState = !crtEnabled;
+            crtEnabled = newState;
+            retroEnabled = newState;
+
+            // Toggle CSS overlay for UI
+            document.getElementById("crtOverlay").classList.toggle("active", newState);
+            document.getElementById("gameWrapper").classList.toggle("crt-active", newState);
+
+            // Toggle nearest-neighbor texture filtering
+            setTextureFiltering(newState);
+
+            console.log("Retro CRT mode:", newState ? "ON" : "OFF");
         }
     });
 
@@ -571,22 +791,23 @@ function reset_taxi() {
     gameState.fuel = gameState.maxFuel;
 }
 
-// Initialize/reset taxi and game state to spawn position
-function initialize_level(spawnPos) {
-    // Set taxi to spawn position
+// Reset taxi physics to a spawn position (used for level changes and respawns)
+function reset_taxi_to_spawn(spawnPos) {
     taxiPhysics.position.x = spawnPos.x;
     taxiPhysics.position.y = spawnPos.y;
     taxiPhysics.position.z = spawnPos.z;
-
-    // Reset velocity
     taxiPhysics.velocity.x = 0;
     taxiPhysics.velocity.y = 0;
     taxiPhysics.velocity.z = 0;
-
-    // Reset heading
     taxiPhysics.heading = 0;
+    taxiPhysics.onGround = false;
+}
 
-    // Reset game state
+// Initialize game for first time (resets everything)
+function initialize_level(spawnPos) {
+    reset_taxi_to_spawn(spawnPos);
+
+    // Reset game state (only for new game, not level changes)
     gameState.fuel = gameState.maxFuel;
     gameState.lives = 5;
     gameState.money = 0;
@@ -594,6 +815,14 @@ function initialize_level(spawnPos) {
     // Reset timer
     startTime = performance.now();
     gameState.time = 0;
+}
+
+// Initialize for level change (preserves money and lives)
+function initialize_next_level(spawnPos) {
+    reset_taxi_to_spawn(spawnPos);
+
+    // Only reset fuel, keep money and lives
+    gameState.fuel = gameState.maxFuel;
 }
 
 function update_taxi(dt) {
@@ -852,6 +1081,14 @@ function render(now) {
     const stack = [];
     walk_update(scene.root, stack, mat4Identity());
 
+    // Determine if we need post-processing
+    const needsPostProcess = crtEnabled || retroEnabled;
+
+    // If any post-processing enabled, render to framebuffer first
+    if (needsPostProcess) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    }
+
     gl.enable(gl.DEPTH_TEST);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -859,6 +1096,17 @@ function render(now) {
     const view = compute_view_matrix();
     set_global_uniforms(view, elapsed);
     walk_draw(scene.root);
+
+    // Apply post-processing effects
+    if (retroEnabled && crtEnabled) {
+        // Chain both effects: Scene -> Retro -> CRT -> Screen
+        renderRetroEffect(elapsed, true);  // Output to framebuffer2
+        renderCRTEffect(elapsed, true);    // Read from framebuffer2, output to screen
+    } else if (retroEnabled) {
+        renderRetroEffect(elapsed, false); // Output directly to screen
+    } else if (crtEnabled) {
+        renderCRTEffect(elapsed, false);   // Output directly to screen
+    }
 
     requestAnimationFrame(render);
 }

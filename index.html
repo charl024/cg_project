@@ -90,7 +90,7 @@
     bottom: 0;
     left: 50%;
     transform: translateX(-50%);
-    width: 1000px;
+    width: 1280px;
     height: 60px;
     background: linear-gradient(to bottom, #8B7355 0%, #6B5345 100%);
     border: 3px solid #5D8A3A;
@@ -105,6 +105,81 @@
     color: #FFF;
     text-shadow: 2px 2px 0px #000;
     z-index: 100;
+  }
+
+  /* CRT Overlay Effect */
+  #crtOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 200;
+    display: none;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  #crtOverlay.active {
+    display: block;
+  }
+
+  /* Scanlines */
+  #crtOverlay::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.15),
+      rgba(0, 0, 0, 0.15) 1px,
+      transparent 1px,
+      transparent 2px
+    );
+    pointer-events: none;
+  }
+
+  /* Vignette and screen glow */
+  #crtOverlay::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(
+      ellipse at center,
+      transparent 0%,
+      transparent 60%,
+      rgba(0, 0, 0, 0.4) 100%
+    );
+    pointer-events: none;
+  }
+
+  /* Game container with CRT curvature when active */
+  .game-wrapper {
+    position: relative;
+    display: inline-block;
+  }
+
+  .game-wrapper.crt-active {
+    transform: perspective(1000px) rotateX(1deg);
+    border-radius: 20px;
+    box-shadow:
+      0 0 100px rgba(100, 200, 100, 0.15),
+      inset 0 0 50px rgba(0, 0, 0, 0.3);
+  }
+
+  .game-wrapper.crt-active #glcanvas {
+    border-radius: 15px;
+  }
+
+  .game-wrapper.crt-active #gameUI {
+    border-radius: 0 0 15px 15px;
   }
 
   .ui-section {
@@ -234,6 +309,118 @@
     }
   }
 
+  /* Level Advance Overlay */
+  .level-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(ellipse at center, rgba(0, 100, 0, 0.6) 0%, rgba(0, 50, 0, 0.8) 100%);
+    z-index: 200;
+    pointer-events: none;
+    animation: levelFlash 2s ease-out forwards;
+  }
+
+  .level-overlay.hidden {
+    display: none;
+  }
+
+  .level-text {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Courier New', monospace;
+    font-size: 48px;
+    font-weight: bold;
+    color: #00ff00;
+    text-shadow: 0 0 20px #00ff00, 0 0 40px #00ff66, 4px 4px 0 #000;
+    z-index: 201;
+    pointer-events: none;
+    text-align: center;
+    animation: levelTextAnim 2s ease-out forwards;
+  }
+
+  .level-text.hidden {
+    display: none;
+  }
+
+  .level-subtext {
+    position: absolute;
+    top: 55%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Courier New', monospace;
+    font-size: 24px;
+    font-weight: bold;
+    color: #ffff00;
+    text-shadow: 0 0 10px #ffff00, 2px 2px 0 #000;
+    z-index: 201;
+    pointer-events: none;
+    text-align: center;
+    animation: levelSubtextAnim 2s ease-out forwards;
+  }
+
+  .level-subtext.hidden {
+    display: none;
+  }
+
+  @keyframes levelFlash {
+    0% {
+      opacity: 0;
+    }
+    20% {
+      opacity: 1;
+    }
+    80% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes levelTextAnim {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.3);
+    }
+    20% {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.1);
+    }
+    30% {
+      transform: translate(-50%, -50%) scale(1);
+    }
+    80% {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(1.2);
+    }
+  }
+
+  @keyframes levelSubtextAnim {
+    0% {
+      opacity: 0;
+    }
+    30% {
+      opacity: 0;
+    }
+    50% {
+      opacity: 1;
+    }
+    80% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
 </style>
 </head>
 
@@ -252,8 +439,11 @@
 
   <div class="mainContent">
     <div class="canvasContainer">
-      <div style="position: relative;">
-        <canvas id="glcanvas" width="1000" height="600"></canvas>
+      <div class="game-wrapper" id="gameWrapper">
+        <canvas id="glcanvas" width="1280" height="720"></canvas>
+
+        <!-- CRT Overlay (CSS-based, covers canvas + UI) -->
+        <div id="crtOverlay"></div>
 
         <!-- Space Taxi Game UI Overlay -->
         <div id="gameUI">
@@ -294,6 +484,11 @@
         <!-- Crash Animation Overlay -->
         <div id="crashOverlay" class="crash-overlay hidden"></div>
         <div id="crashText" class="crash-text hidden">CRASH!</div>
+
+        <!-- Level Advance Overlay -->
+        <div id="levelOverlay" class="level-overlay hidden"></div>
+        <div id="levelText" class="level-text hidden">LEVEL 2</div>
+        <div id="levelSubtext" class="level-subtext hidden">+1 LIFE</div>
       </div>
 
       <div class="sliderColumn">
@@ -469,6 +664,179 @@ void main() {
   vec3 total_light = vColor * tex_color.rgb * (light1 + light2);
 
   fragColor = vec4(total_light, 1.0);
+}
+  </script>
+
+  <!-- CRT Post-processing Vertex Shader -->
+  <script id="crt-vertex-shader" type="x-shader/x-vertex">#version 300 es
+in vec2 aPosition;
+in vec2 aTexCoord;
+out vec2 vTexCoord;
+
+void main() {
+    vTexCoord = aTexCoord;
+    gl_Position = vec4(aPosition, 0.0, 1.0);
+}
+  </script>
+
+  <!-- CRT Post-processing Fragment Shader -->
+  <script id="crt-fragment-shader" type="x-shader/x-fragment">#version 300 es
+precision mediump float;
+
+in vec2 vTexCoord;
+out vec4 fragColor;
+
+uniform sampler2D uScreen;
+uniform float uTime;
+uniform vec2 uResolution;
+
+// CRT curvature
+vec2 curve(vec2 uv) {
+    uv = (uv - 0.5) * 2.0;
+    uv *= 1.1;
+    uv.x *= 1.0 + pow(abs(uv.y) / 5.0, 2.0);
+    uv.y *= 1.0 + pow(abs(uv.x) / 4.0, 2.0);
+    uv = (uv / 2.0) + 0.5;
+    return uv;
+}
+
+void main() {
+    vec2 uv = curve(vTexCoord);
+    vec3 col;
+
+    // Out of bounds check (black border)
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+        fragColor = vec4(0.0, 0.0, 0.0, 1.0);
+        return;
+    }
+
+    // Chromatic aberration
+    float aberration = 0.002;
+    col.r = texture(uScreen, vec2(uv.x + aberration, uv.y)).r;
+    col.g = texture(uScreen, uv).g;
+    col.b = texture(uScreen, vec2(uv.x - aberration, uv.y)).b;
+
+    // Scanlines
+    float scanline = sin(uv.y * uResolution.y * 1.5) * 0.04;
+    col -= scanline;
+
+    // Vertical lines (phosphor mask)
+    float vline = sin(uv.x * uResolution.x * 1.5) * 0.02;
+    col -= vline;
+
+    // Vignette
+    float vignette = uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y);
+    vignette = clamp(pow(16.0 * vignette, 0.3), 0.0, 1.0);
+    col *= vignette;
+
+    // Slight flicker
+    col *= 0.95 + 0.05 * sin(uTime * 10.0);
+
+    // Boost brightness slightly to compensate for darkening effects
+    col *= 1.2;
+
+    // Clamp and add slight green tint for retro feel
+    col = clamp(col, 0.0, 1.0);
+    col.g *= 1.05;
+
+    fragColor = vec4(col, 1.0);
+}
+  </script>
+
+  <!-- Retro Post-processing Fragment Shader -->
+  <script id="retro-fragment-shader" type="x-shader/x-fragment">#version 300 es
+precision mediump float;
+
+in vec2 vTexCoord;
+out vec4 fragColor;
+
+uniform sampler2D uScreen;
+uniform vec2 uResolution;
+uniform float uTime;
+
+// Pixelation resolution (lower = more pixelated)
+const float PIXEL_SIZE = 4.0;
+
+// Color quantization levels (lower = more posterized)
+const float COLOR_LEVELS = 16.0;
+
+// Bloom settings
+const float BLOOM_THRESHOLD = 0.6;
+const float BLOOM_INTENSITY = 0.3;
+
+// Pixelate UV coordinates
+vec2 pixelate(vec2 uv) {
+    vec2 pixelCount = uResolution / PIXEL_SIZE;
+    return floor(uv * pixelCount) / pixelCount;
+}
+
+// Posterize/quantize colors
+vec3 posterize(vec3 col) {
+    return floor(col * COLOR_LEVELS) / COLOR_LEVELS;
+}
+
+// Simple bloom - sample surrounding pixels for glow
+vec3 bloom(vec2 uv) {
+    vec2 pixelSize = PIXEL_SIZE / uResolution;
+    vec3 bloomCol = vec3(0.0);
+
+    // Sample in a cross pattern
+    for (int x = -2; x <= 2; x++) {
+        for (int y = -2; y <= 2; y++) {
+            vec2 offset = vec2(float(x), float(y)) * pixelSize * 2.0;
+            vec2 sampleUV = pixelate(uv + offset);
+            vec3 sampleCol = texture(uScreen, sampleUV).rgb;
+
+            // Only bloom bright pixels
+            float brightness = dot(sampleCol, vec3(0.299, 0.587, 0.114));
+            if (brightness > BLOOM_THRESHOLD) {
+                bloomCol += sampleCol * (brightness - BLOOM_THRESHOLD);
+            }
+        }
+    }
+
+    return bloomCol / 25.0 * BLOOM_INTENSITY;
+}
+
+// Retro arcade color grading
+vec3 retroColors(vec3 col) {
+    // Boost saturation
+    float gray = dot(col, vec3(0.299, 0.587, 0.114));
+    col = mix(vec3(gray), col, 1.4);
+
+    // Warm shift (more orange/yellow in highlights)
+    col.r *= 1.1;
+    col.b *= 0.9;
+
+    // Boost contrast
+    col = (col - 0.5) * 1.2 + 0.5;
+
+    // Crush blacks slightly (like old displays)
+    col = max(col, vec3(0.05));
+
+    return clamp(col, 0.0, 1.0);
+}
+
+void main() {
+    // Pixelate
+    vec2 pixelUV = pixelate(vTexCoord);
+
+    // Sample base color
+    vec3 col = texture(uScreen, pixelUV).rgb;
+
+    // Apply retro color grading
+    col = retroColors(col);
+
+    // Posterize
+    col = posterize(col);
+
+    // Add bloom glow
+    col += bloom(vTexCoord);
+
+    // Final clamp
+    col = clamp(col, 0.0, 1.0);
+
+    fragColor = vec4(col, 1.0);
 }
   </script>
 

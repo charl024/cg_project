@@ -462,16 +462,15 @@ function create_scene(gl, program, uniforms) {
             max_hill_height
         );
 
+        // Override spawn position to be on a validated platform
         if (state.level.platforms.length > 0) {
-            const idx = Math.floor(Math.random() * state.level.platforms.length);
-            const p = state.level.platforms[idx];
-            const loc = p.platformLocation;
-
-            const top = loc.y + (loc.h / 2);
+            const spawnPlatform = select_spawn_platform(refuelX, refuelZ);
+            const loc = spawnPlatform.platformLocation;
+            const platformTop = loc.y + (loc.h / 2);
 
             state.level.spawn_position = {
                 x: loc.x,
-                y: top + 4.0,
+                y: platformTop + 1.5, // Just above platform surface
                 z: loc.z
             };
         }
@@ -505,52 +504,191 @@ function create_scene(gl, program, uniforms) {
         return Math.round(n * max_hill_height);
     }
 
+    // Get the actual top surface Y of terrain at a world position
+    function get_terrain_top_y(worldX, worldZ, grid_width, grid_length, cell_width, cell_length, freq, max_hill_height) {
+        const gx = Math.max(0, Math.min(grid_width - 1, Math.floor((worldX + BASE_WIDTH) / cell_width)));
+        const gz = Math.max(0, Math.min(grid_length - 1, Math.floor((worldZ + BASE_LENGTH) / cell_length)));
+        const terrainHeight = sample_terrain_height(gx, gz, freq, max_hill_height);
+        // Terrain cube is centered at (terrainHeight/2 - 5) with height (terrainHeight + 1)
+        // So top = (terrainHeight/2 - 5) + (terrainHeight + 1)/2 = terrainHeight - 4.5
+        return terrainHeight - 2;
+    }
+
+    // Analyze a cell to determine spawn suitability
+    function analyze_spawn_cell(worldX, worldZ, refuelX, refuelZ, grid_width, grid_length, cell_width, cell_length, freq, max_hill_height) {
+        const terrainTopY = get_terrain_top_y(worldX, worldZ, grid_width, grid_length, cell_width, cell_length, freq, max_hill_height);
+        const distToRefuel = Math.hypot(worldX - refuelX, worldZ - refuelZ);
+
+        // Check spawn zone (back quarter of map, center X)
+        const inSpawnZone = (
+            worldZ >= -BASE_LENGTH + 10 &&
+            worldZ <= -BASE_LENGTH / 2 &&
+            worldX >= -BASE_WIDTH / 2 &&
+            worldX <= BASE_WIDTH / 2
+        );
+
+        // Find if there's a platform near this position
+        let nearestPlatform = null;
+        let nearestPlatformDist = Infinity;
+
+        for (const platform of state.level.platforms) {
+            const loc = platform.platformLocation;
+            const dist = Math.hypot(worldX - loc.x, worldZ - loc.z);
+            if (dist < nearestPlatformDist) {
+                nearestPlatformDist = dist;
+                nearestPlatform = platform;
+            }
+        }
+
+        // Platform is "at" this cell if within platform radius (platforms are 4x4 or 3x3)
+        const hasPlatformHere = nearestPlatform && nearestPlatformDist < 2.0;
+        let platformTopY = null;
+
+        if (hasPlatformHere) {
+            const loc = nearestPlatform.platformLocation;
+            // Platform top = center Y + half height
+            platformTopY = loc.y + (loc.h / 2);
+        }
+
+        return {
+            worldX,
+            worldZ,
+            terrainTopY,
+            distToRefuel,
+            inSpawnZone,
+            hasPlatformHere,
+            platformTopY,
+            nearestPlatform,
+            nearestPlatformDist
+        };
+    }
+
+    // Find a valid platform for spawning (mountain level)
+    function select_spawn_platform(refuelX, refuelZ) {
+        const validPlatforms = [];
+        const MIN_REFUEL_DIST = 15;
+        const MIN_PLATFORM_SPACING = 8; // Don't spawn on platforms too close to others
+
+        for (const platform of state.level.platforms) {
+            const loc = platform.platformLocation;
+            const distToRefuel = Math.hypot(loc.x - refuelX, loc.z - refuelZ);
+
+            if (distToRefuel < MIN_REFUEL_DIST) continue;
+
+            // Check distance to other platforms (avoid cramped areas)
+            let tooClose = false;
+            for (const other of state.level.platforms) {
+                if (other === platform) continue;
+                const otherLoc = other.platformLocation;
+                const dist = Math.hypot(loc.x - otherLoc.x, loc.z - otherLoc.z);
+                if (dist < MIN_PLATFORM_SPACING) {
+                    tooClose = true;
+                    break;
+                }
+            }
+            if (tooClose) continue;
+
+            // Prefer platforms not at edges of map
+            const edgeMargin = 10;
+            const nearEdge = (
+                Math.abs(loc.x) > BASE_WIDTH - edgeMargin ||
+                Math.abs(loc.z) > BASE_LENGTH - edgeMargin
+            );
+
+            validPlatforms.push({
+                platform,
+                nearEdge,
+                distToRefuel
+            });
+        }
+
+        if (validPlatforms.length === 0) {
+            // Fallback: just pick any platform far from refuel
+            for (const platform of state.level.platforms) {
+                const loc = platform.platformLocation;
+                if (Math.hypot(loc.x - refuelX, loc.z - refuelZ) >= MIN_REFUEL_DIST) {
+                    return platform;
+                }
+            }
+            // Last resort: first platform
+            return state.level.platforms[0];
+        }
+
+        // Prefer platforms not near edges
+        const interiorPlatforms = validPlatforms.filter(p => !p.nearEdge);
+        const candidates = interiorPlatforms.length > 0 ? interiorPlatforms : validPlatforms;
+
+        // Pick randomly from valid candidates
+        const idx = Math.floor(Math.random() * candidates.length);
+        return candidates[idx].platform;
+    }
+
     function select_taxi_spawn_position(grid_width, grid_length, cell_width, cell_length, freq, max_hill_height, refuelX, refuelZ) {
         // Select a random GRID CELL in the back quarter of the map (where player starts)
-        // Convert zone bounds to grid coordinates
         const spawnZoneMinZ = -BASE_LENGTH + 10;
         const spawnZoneMaxZ = -BASE_LENGTH / 2;
         const spawnZoneMinX = -BASE_WIDTH / 2;
         const spawnZoneMaxX = BASE_WIDTH / 2;
 
-        // Convert to grid cell indices
         const gxMin = Math.floor((spawnZoneMinX + BASE_WIDTH) / cell_width);
         const gxMax = Math.floor((spawnZoneMaxX + BASE_WIDTH) / cell_width);
         const gzMin = Math.floor((spawnZoneMinZ + BASE_LENGTH) / cell_length);
         const gzMax = Math.floor((spawnZoneMaxZ + BASE_LENGTH) / cell_length);
 
-        let gx, gz, spawnX, spawnZ, terrainHeight;
-        let attempts = 0;
+        let bestCell = null;
         const maxAttempts = 50;
+        const MIN_REFUEL_DIST = 12;
 
-        // Keep trying until we find a valid spawn position away from refuel tower
-        do {
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
             // Pick a random grid cell in the spawn zone
-            gx = gxMin + Math.floor(Math.random() * (gxMax - gxMin + 1));
-            gz = gzMin + Math.floor(Math.random() * (gzMax - gzMin + 1));
-
+            let gx = gxMin + Math.floor(Math.random() * (gxMax - gxMin + 1));
+            let gz = gzMin + Math.floor(Math.random() * (gzMax - gzMin + 1));
             gx = Math.max(0, Math.min(grid_width - 1, gx));
             gz = Math.max(0, Math.min(grid_length - 1, gz));
 
-            spawnX = -BASE_WIDTH + gx * cell_width + cell_width / 2;
-            spawnZ = -BASE_LENGTH + gz * cell_length + cell_length / 2;
+            const worldX = -BASE_WIDTH + gx * cell_width + cell_width / 2;
+            const worldZ = -BASE_LENGTH + gz * cell_length + cell_length / 2;
 
-            // Check distance from refuel tower
-            const distToRefuel = Math.hypot(spawnX - refuelX, spawnZ - refuelZ);
+            const cell = analyze_spawn_cell(
+                worldX, worldZ, refuelX, refuelZ,
+                grid_width, grid_length, cell_width, cell_length, freq, max_hill_height
+            );
 
-            // If far enough from refuel tower, accept this position
-            if (distToRefuel > 12) {
-                break;
+            // Must be far enough from refuel tower
+            if (cell.distToRefuel < MIN_REFUEL_DIST) continue;
+
+            // If there's a platform here, spawn on it
+            if (cell.hasPlatformHere && cell.platformTopY !== null) {
+                return {
+                    x: worldX,
+                    y: cell.platformTopY + 1.5, // Just above platform surface
+                    z: worldZ
+                };
             }
 
-            attempts++;
-        } while (attempts < maxAttempts);
+            // Otherwise this is a valid terrain cell
+            if (!bestCell || cell.distToRefuel > bestCell.distToRefuel) {
+                bestCell = cell;
+            }
+        }
 
-        terrainHeight = sample_terrain_height(gx, gz, freq, max_hill_height);
-        const groundLevel = terrainHeight - 4.5;
-        const spawnY = groundLevel + 0.5 + 5.0;
+        // Use best terrain cell found
+        if (bestCell) {
+            return {
+                x: bestCell.worldX,
+                y: bestCell.terrainTopY + 1.5, // Just above terrain surface
+                z: bestCell.worldZ
+            };
+        }
 
-        return { x: spawnX, y: spawnY, z: spawnZ };
+        // Fallback: center of spawn zone
+        const fallbackX = 0;
+        const fallbackZ = -BASE_LENGTH * 0.75;
+        const fallbackY = get_terrain_top_y(
+            fallbackX, fallbackZ,
+            grid_width, grid_length, cell_width, cell_length, freq, max_hill_height
+        );
+        return { x: fallbackX, y: fallbackY + 1.5, z: fallbackZ };
     }
 
     function generate_mountain_cliff_platforms(
