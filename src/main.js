@@ -32,12 +32,12 @@ const fragment_shader_src = document.getElementById("fragment-shader").textConte
 const program = create_program(gl, vertex_shader_src, fragment_shader_src);
 gl.useProgram(program);
 
-// CRT post-processing setup
+// CRT setup
 const crt_vertex_src = document.getElementById("crt-vertex-shader").textContent.trim();
 const crt_fragment_src = document.getElementById("crt-fragment-shader").textContent.trim();
 const crtProgram = create_program(gl, crt_vertex_src, crt_fragment_src);
 
-// Retro post-processing setup (uses same vertex shader as CRT)
+// Retro setup
 const retro_fragment_src = document.getElementById("retro-fragment-shader").textContent.trim();
 const retroProgram = create_program(gl, crt_vertex_src, retro_fragment_src);
 
@@ -45,15 +45,11 @@ const retroProgram = create_program(gl, crt_vertex_src, retro_fragment_src);
 let crtEnabled = false;
 let retroEnabled = false;
 
-// Use global texture registry from shape.js
-// window.registeredTextures is populated by create_texture()
-
-// Framebuffers for post-processing (two for effect chaining)
+// Framebuffers for the other shaders
 let framebuffer, renderTexture, depthBuffer;
 let framebuffer2, renderTexture2;
 
 function setupFramebuffer() {
-    // Primary framebuffer (scene render target)
     framebuffer = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
 
@@ -71,7 +67,6 @@ function setupFramebuffer() {
     gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, canvas.width, canvas.height);
     gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthBuffer);
 
-    // Secondary framebuffer (for effect chaining)
     framebuffer2 = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer2);
 
@@ -87,9 +82,9 @@ function setupFramebuffer() {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }
 
-// Full-screen quad for post-processing
 let quadVAO, quadVBO;
 
+// quad setup for textures for other shaders
 function setupQuad() {
     const quadVertices = new Float32Array([
         // positions   // texCoords
@@ -128,7 +123,6 @@ function renderCRTEffect(time, useSecondaryTexture = false) {
     gl.useProgram(crtProgram);
 
     gl.activeTexture(gl.TEXTURE0);
-    // Read from secondary texture if chained from retro effect
     gl.bindTexture(gl.TEXTURE_2D, useSecondaryTexture ? renderTexture2 : renderTexture);
     gl.uniform1i(gl.getUniformLocation(crtProgram, "uScreen"), 0);
     gl.uniform1f(gl.getUniformLocation(crtProgram, "uTime"), time);
@@ -138,13 +132,12 @@ function renderCRTEffect(time, useSecondaryTexture = false) {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.bindVertexArray(null);
 
-    // Restore main program
+    // use main program
     gl.useProgram(program);
     gl.enable(gl.DEPTH_TEST);
 }
 
 function renderRetroEffect(time, outputToFramebuffer = false) {
-    // Output to secondary framebuffer if chaining, otherwise to screen
     gl.bindFramebuffer(gl.FRAMEBUFFER, outputToFramebuffer ? framebuffer2 : null);
     gl.disable(gl.DEPTH_TEST);
     gl.clear(gl.COLOR_BUFFER_BIT);
@@ -161,12 +154,11 @@ function renderRetroEffect(time, outputToFramebuffer = false) {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.bindVertexArray(null);
 
-    // Restore main program
+    // use main program
     gl.useProgram(program);
     gl.enable(gl.DEPTH_TEST);
 }
 
-// Toggle texture filtering between nearest (pixelated) and linear (smooth)
 function setTextureFiltering(useNearest) {
     const minFilter = useNearest ? gl.NEAREST : gl.LINEAR_MIPMAP_LINEAR;
     const magFilter = useNearest ? gl.NEAREST : gl.LINEAR;
@@ -179,11 +171,11 @@ function setTextureFiltering(useNearest) {
     gl.bindTexture(gl.TEXTURE_2D, null);
 }
 
-// Initialize CRT post-processing
+// Initialize CRT effect stuff
 setupFramebuffer();
 setupQuad();
 
-// Uniform locations for shapes
+// Uniform locations
 const uniforms = {
     uMTM: gl.getUniformLocation(program, "uModelTransformationMatrix"),
     uKa: gl.getUniformLocation(program, "uKa"),
@@ -211,13 +203,13 @@ const global_uniforms = {
     uTexScale: gl.getUniformLocation(program, "uTexScale")
 };
 
-// Camera data - 3D third-person camera attached to taxi
+// Camera data
 const camera = {
     // Camera position in world space
     pos: { x: 0, y: 10, z: -15 },
-    // Look-at target (where camera points)
+    // Look-at target
     lookAt: { x: 0, y: 5, z: 0 },
-    // Camera offset from taxi (in taxi's local space)
+    // Camera offset from taxi
     offsetBehind: 18,  // Distance behind taxi
     offsetUp: 8,       // Height above taxi
     lookAhead: 12,     // How far ahead of taxi to look
@@ -246,16 +238,14 @@ function update_camera(dt) {
     const forwardX = Math.sin(taxiHeading);
     const forwardZ = Math.cos(taxiHeading);
 
-    // Calculate camera position: fixed behind and above the taxi
+    // Calculate camera position
     const distance = camera.offsetBehind * camera.zoomLevel;
     const height = camera.offsetUp * camera.zoomLevel;
 
-    // Camera is rigidly attached BEHIND the taxi
     camera.pos.x = taxiX - forwardX * distance;
     camera.pos.z = taxiZ - forwardZ * distance;
     camera.pos.y = taxiY + height;
 
-    // Camera looks AHEAD of the taxi (fixed, no interpolation)
     camera.lookAt.x = taxiX + forwardX * camera.lookAhead;
     camera.lookAt.z = taxiZ + forwardZ * camera.lookAhead;
     camera.lookAt.y = taxiY;
@@ -336,25 +326,18 @@ function set_global_uniforms(view, elapsed) {
     gl.uniform1f(global_uniforms.uTime, elapsed);
 }
 
-// Taxi physics state - 3D movement
+// Taxi physics state
 const taxiPhysics = {
-    // Position (stored separately for reliability) - will be initialized
     position: { x: 0, y: 0, z: 0 },
-    // 3D velocity
     velocity: { x: 0, y: 0, z: 0 },
-    // Rotation
-    heading: 0,           // Current heading (Y rotation) in radians
-    turnSpeed: 1.5,       // Radians per second for A/D rotation
-    // Movement parameters
+    heading: 0,           // in radians
+    turnSpeed: 1.5,       // Radians per second
     thrustPower: 18.0,    // Vertical thrust
     moveAccel: 12.0,      // Forward/backward acceleration
     gravity: 9.8,
-    // Velocity limits
     maxVelocityY: 12.0,
     maxVelocityXZ: 15.0,  // Max horizontal speed
-    // State
     onGround: false,
-    // Drag coefficients
     airDrag: 0.98,
     groundDrag: 0.9,
 };
@@ -365,7 +348,7 @@ const gameState = {
     fuel: 100.0,  // 0-100
     maxFuel: 100.0,
     money: 0.00,
-    time: 0.0,    // in seconds
+    time: 0.0,    // seconds
     fuelConsumptionRate: 4.0,  // fuel per second when thrusting
     horizontalFuelRate: 2.0,   // fuel per second when using horizontal thrust
     refuelRate: 33.0,          // fuel per second when on refuel station
@@ -405,7 +388,7 @@ function update_ui() {
     // Update money display
     document.getElementById("moneyDisplay").textContent = gameState.money.toFixed(2);
 
-    // Update velocity display (magnitude of velocity vector)
+    // Update velocity display ()
     const velocity = Math.sqrt(
         taxiPhysics.velocity.x ** 2 +
         taxiPhysics.velocity.y ** 2 +
