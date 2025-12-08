@@ -42,8 +42,8 @@ const retro_fragment_src = document.getElementById("retro-fragment-shader").text
 const retroProgram = create_program(gl, crt_vertex_src, retro_fragment_src);
 
 // Effect states
-let crtEnabled = false;
-let retroEnabled = false;
+let crtEnabled = true;
+let retroEnabled = true;
 
 // Framebuffers for the other shaders
 let framebuffer, renderTexture, depthBuffer;
@@ -149,6 +149,9 @@ function renderRetroEffect(time, outputToFramebuffer = false) {
     gl.uniform1i(gl.getUniformLocation(retroProgram, "uScreen"), 0);
     gl.uniform1f(gl.getUniformLocation(retroProgram, "uTime"), time);
     gl.uniform2f(gl.getUniformLocation(retroProgram, "uResolution"), canvas.width, canvas.height);
+
+    gl.uniform1f(gl.getUniformLocation(retroProgram, "uRainIntensity"), scene_builder.get_rain_intensity());
+    gl.uniform1f(gl.getUniformLocation(retroProgram, "uSnowIntensity"), scene_builder.get_snow_intensity());
 
     gl.bindVertexArray(quadVAO);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -360,6 +363,8 @@ const gameState = {
         pickupTime: 0,          // time when passenger was picked up
         pickupPlatform: null,   // platform where passenger was picked up
         dropoffPlatform: null,  // destination platform
+        currentFare: 0,         // current fare (ticks down over time)
+        fareDecayRate: 1.0,     // dollars per second decay
     },
 
     // Landing system
@@ -418,16 +423,15 @@ function update_ui() {
         }
     });
 
-    // Update trip timer
+    // Update fare display (ticks down over time)
     const tripTimer = document.getElementById("tripTimer");
     if (gameState.passenger.hasPassenger) {
-        const tripTime = gameState.time - gameState.passenger.pickupTime;
-        const tripSecs = Math.floor(tripTime);
-        tripTimer.textContent = `${tripSecs}s`;
-        // Color based on time (green to red as time increases)
-        if (tripTime < 15) {
+        const fare = gameState.passenger.currentFare;
+        tripTimer.textContent = `$${fare.toFixed(2)}`;
+        // Color based on fare amount (green when high, red when low)
+        if (fare > 20) {
             tripTimer.style.color = "#00ff00";
-        } else if (tripTime < 25) {
+        } else if (fare > 10) {
             tripTimer.style.color = "#ffff00";
         } else {
             tripTimer.style.color = "#ff6600";
@@ -490,7 +494,7 @@ function get_landing_multiplier(quality) {
     }
 }
 
-// Handle a crash, lose a life and reset position (keep passenger!)
+// Handle a crash - lose a life, reset position, reset task (like pressing R)
 function handle_crash() {
     gameState.lives--;
     gameState.landing.lastLandingQuality = "crash";
@@ -498,7 +502,7 @@ function handle_crash() {
     // Show crash animation
     show_crash_animation();
 
-    // Reset taxi position (but keep passenger and trip timer running!)
+    // Reset taxi position and current task
     if (gameState.lives > 0) {
         // Reset to spawn position
         taxiPhysics.position.x = scene.level.spawn_position.x;
@@ -508,6 +512,18 @@ function handle_crash() {
         taxiPhysics.velocity.y = 0;
         taxiPhysics.velocity.z = 0;
         taxiPhysics.heading = 0;
+
+        // Reset fuel to max
+        gameState.fuel = gameState.maxFuel;
+
+        // Reset passenger state - must re-pickup rider after crash
+        gameState.passenger.hasPassenger = false;
+        gameState.passenger.pickupPlatform = null;
+        gameState.passenger.dropoffPlatform = null;
+        gameState.passenger.currentFare = 0;
+
+        // Set up a new pickup location
+        scene_builder.setup_next_passenger();
     }
 }
 
@@ -596,6 +612,9 @@ function pickup_passenger(platform) {
     gameState.passenger.pickupTime = gameState.time;
     gameState.passenger.pickupPlatform = platform;
 
+    // Set initial fare between $20-30 (will tick down over time)
+    gameState.passenger.currentFare = 20 + Math.random() * 10;
+
     const dropoffPlatform = scene_builder.get_random_dropoff_platform(platform);
     gameState.passenger.dropoffPlatform = dropoffPlatform;
 
@@ -604,7 +623,7 @@ function pickup_passenger(platform) {
         scene_builder.set_goal_arrow_target(dropoffPlatform);
     }
 
-    console.log("Passenger picked up! Deliver to dropoff platform.");
+    console.log(`Passenger picked up! Fare: $${gameState.passenger.currentFare.toFixed(2)}`);
 }
 
 // Deliver a passenger to their destination
@@ -612,11 +631,8 @@ function deliver_passenger(landingQuality) {
     const deliveryTime = gameState.time - gameState.passenger.pickupTime;
     const multiplier = get_landing_multiplier(landingQuality);
 
-    // Base fare calculation: faster delivery = more money
-    // Base fare of $10, bonus for fast delivery, multiplied by landing quality
-    const baseFare = 10.0;
-    const timeBonus = Math.max(0, 30 - deliveryTime) * 0.5; // $0.50 per second under 30s
-    const totalFare = (baseFare + timeBonus) * multiplier;
+    // Use current fare (which has been ticking down) multiplied by landing quality
+    const totalFare = gameState.passenger.currentFare * multiplier;
 
     gameState.money += totalFare;
 
@@ -729,6 +745,11 @@ function register_taxi_input() {
             setTextureFiltering(newState);
 
             console.log("Retro CRT mode:", newState ? "ON" : "OFF");
+        }
+        if (e.key === "t" || e.key === "T") {
+            // Cycle through weather types
+            scene_builder.set_random_weather();
+            console.log("Weather changed to:", scene_builder.get_weather_name());
         }
     });
 
@@ -1041,10 +1062,24 @@ function render(now) {
     // Update game time
     gameState.time = elapsed;
 
+    // Decay fare over time when carrying a passenger (can go to zero)
+    if (gameState.passenger.hasPassenger) {
+        gameState.passenger.currentFare = Math.max(
+            0,
+            gameState.passenger.currentFare - gameState.passenger.fareDecayRate * dt
+        );
+    }
+
     // Update taxi first, then camera uses taxi's new position
     scene.dt = dt;
     scene.time = elapsed;
     update_taxi(dt);
+
+    // Check if taxi fell into death zone (lava, void, etc.)
+    if (taxiPhysics.position.y < scene.level.deathY && gameState.lives > 0) {
+        handle_crash();
+    }
+
     update_camera(dt);
     scene_builder.update_lights();
 
@@ -1064,7 +1099,9 @@ function render(now) {
     }
 
     gl.enable(gl.DEPTH_TEST);
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    // Use weather sky color
+    const skyColor = scene_builder.get_weather_sky_color();
+    gl.clearColor(skyColor[0], skyColor[1], skyColor[2], 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     const view = compute_view_matrix();

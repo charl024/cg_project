@@ -181,6 +181,51 @@
     border-radius: 0 0 15px 15px;
   }
 
+  /* CRT effects on crash/level overlays */
+  .game-wrapper.crt-active .crash-overlay,
+  .game-wrapper.crt-active .level-overlay {
+    background-blend-mode: screen;
+  }
+
+  .game-wrapper.crt-active .crash-text,
+  .game-wrapper.crt-active .level-text,
+  .game-wrapper.crt-active .level-subtext {
+    animation-name: crashTextAnimCRT, textFlicker;
+    text-shadow:
+      0 0 20px currentColor,
+      0 0 40px currentColor,
+      4px 4px 0 #000,
+      -1px 0 rgba(255, 0, 0, 0.5),
+      1px 0 rgba(0, 255, 255, 0.5);
+  }
+
+  .game-wrapper.crt-active .crash-text::before,
+  .game-wrapper.crt-active .level-text::before,
+  .game-wrapper.crt-active .level-subtext::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.3) 2px,
+      rgba(0, 0, 0, 0.3) 4px
+    );
+    pointer-events: none;
+  }
+
+  @keyframes textFlicker {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.95; }
+    52% { opacity: 1; }
+    54% { opacity: 0.9; }
+    56% { opacity: 1; }
+  }
+
   .ui-section {
     display: flex;
     align-items: center;
@@ -462,7 +507,7 @@
           </div>
 
           <div class="ui-section">
-            <span class="ui-label">TRIP</span>
+            <span class="ui-label">FARE</span>
             <span class="ui-value" id="tripTimer">--</span>
           </div>
 
@@ -746,6 +791,8 @@ out vec4 fragColor;
 uniform sampler2D uScreen;
 uniform vec2 uResolution;
 uniform float uTime;
+uniform float uRainIntensity;  // 0.0 = no rain, 1.0 = heavy rain
+uniform float uSnowIntensity;  // 0.0 = no snow, 1.0 = heavy snow
 
 const float PIXEL_SIZE = 4.0;
 
@@ -755,6 +802,76 @@ const float COLOR_LEVELS = 16.0;
 // Bloom params
 const float BLOOM_THRESHOLD = 0.6;
 const float BLOOM_INTENSITY = 0.3;
+
+float rand(vec2 co) {
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+float rain(vec2 uv, float time) {
+    float rainDrops = 0.0;
+
+    // Multiple layers of rain for depth
+    for (float i = 0.0; i < 3.0; i++) {
+        float speed = 2.0 + i * 0.5;
+        float density = 100.0 - i * 20.0;
+
+        vec2 rainUV = uv;
+        rainUV.y += time * speed;
+        rainUV.x += sin(time * 0.5 + i) * 0.02;
+
+        // Create rain columns
+        float column = floor(rainUV.x * density);
+        float randomOffset = rand(vec2(column, i));
+
+        // Rain drop position within column
+        float dropY = fract(rainUV.y * (3.0 + randomOffset * 2.0) + randomOffset * 100.0);
+
+        // Rain streak shape
+        float streak = smoothstep(0.0, 0.1, dropY) * smoothstep(0.4, 0.1, dropY);
+
+        // Random visibility per column
+        float visible = step(0.7 - i * 0.1, rand(vec2(column, floor(rainUV.y * 2.0) + i)));
+
+        rainDrops += streak * visible * (0.3 - i * 0.08);
+    }
+
+    return rainDrops;
+}
+
+float snow(vec2 uv, float time) {
+    float snowFlakes = 0.0;
+
+    // Multiple layers of snow
+    for (float i = 0.0; i < 4.0; i++) {
+        float speed = 0.3 + i * 0.15;
+        float size = 0.008 - i * 0.001;
+
+        vec2 snowUV = uv;
+        snowUV.y += time * speed;
+        snowUV.x += sin(time * 0.3 + snowUV.y * 2.0 + i) * 0.05;
+
+        // Grid for snowflakes
+        vec2 grid = floor(snowUV * (40.0 + i * 10.0));
+        vec2 localUV = fract(snowUV * (40.0 + i * 10.0));
+
+        // Random offset within cell
+        float randX = rand(grid);
+        float randY = rand(grid + 1.0);
+
+        vec2 flakePos = vec2(randX, randY);
+        float dist = length(localUV - flakePos);
+
+        // Circular snowflake
+        float flake = smoothstep(size, size * 0.3, dist);
+
+        // Random visibility
+        float visible = step(0.85 - i * 0.05, rand(grid + 2.0));
+
+        snowFlakes += flake * visible * (0.5 - i * 0.1);
+    }
+
+    return snowFlakes;
+}
 
 // Given a uv coord, we pixelate it
 vec2 pixelate(vec2 uv) {
@@ -767,7 +884,7 @@ vec3 posterize(vec3 col) {
     return floor(col * COLOR_LEVELS) / COLOR_LEVELS;
 }
 
-// bloom function, makes surrounding pixels a bit brighter 
+// bloom function, makes surrounding pixels a bit brighter
 vec3 bloom(vec2 uv) {
     vec2 pixelSize = PIXEL_SIZE / uResolution;
     vec3 bloomCol = vec3(0.0);
@@ -811,6 +928,18 @@ void main() {
 
     col = posterize(col);
     col += bloom(vTexCoord);
+
+    // Rain effect
+    if (uRainIntensity > 0.0) {
+        float rainEffect = rain(vTexCoord, uTime) * uRainIntensity;
+        col += vec3(0.4, 0.45, 0.5) * rainEffect;
+    }
+
+    // Snow effect
+    if (uSnowIntensity > 0.0) {
+        float snowEffect = snow(vTexCoord, uTime) * uSnowIntensity;
+        col += vec3(0.9, 0.95, 1.0) * snowEffect;
+    }
 
     col = clamp(col, 0.0, 1.0);
     fragColor = vec4(col, 1.0);

@@ -19,12 +19,112 @@ function create_scene(gl, program, uniforms) {
         cylinder: make_shape(gl, program, () => cylinder_data(30, 30, 1, 1)),
     };
 
+    const WEATHER_TYPES = {
+        clear: {
+            name: "Clear",
+            skyColor: [0.0, 0.0, 0.0],
+            light1: [0.7, 0.7, 0.65],
+            light2: [0.3, 0.3, 0.4],
+            fogDensity: 0.0,
+            rainIntensity: 0.0,
+            snowIntensity: 0.0
+        },
+        sunset: {
+            name: "Sunset",
+            skyColor: [0.15, 0.05, 0.02],
+            light1: [1.0, 0.5, 0.2],
+            light2: [0.6, 0.3, 0.4],
+            fogDensity: 0.0,
+            rainIntensity: 0.0,
+            snowIntensity: 0.0
+        },
+        night: {
+            name: "Night",
+            skyColor: [0.0, 0.0, 0.05],
+            light1: [0.2, 0.2, 0.4],
+            light2: [0.1, 0.1, 0.2],
+            fogDensity: 0.0,
+            rainIntensity: 0.0,
+            snowIntensity: 0.0
+        },
+        space: {
+            name: "Space",
+            skyColor: [0.0, 0.0, 0.02],
+            light1: [0.5, 0.5, 0.6],
+            light2: [0.2, 0.2, 0.3],
+            fogDensity: 0.0,
+            rainIntensity: 0.0,
+            snowIntensity: 0.0
+        },
+        foggy: {
+            name: "Foggy",
+            skyColor: [0.3, 0.3, 0.35],
+            light1: [0.5, 0.5, 0.5],
+            light2: [0.4, 0.4, 0.4],
+            fogDensity: 0.02,
+            rainIntensity: 0.0,
+            snowIntensity: 0.0
+        },
+        storm: {
+            name: "Storm",
+            skyColor: [0.05, 0.05, 0.08],
+            light1: [0.3, 0.3, 0.35],
+            light2: [0.2, 0.2, 0.25],
+            fogDensity: 0.01,
+            rainIntensity: 1.0,
+            snowIntensity: 0.0
+        },
+        rainy: {
+            name: "Rainy",
+            skyColor: [0.15, 0.15, 0.2],
+            light1: [0.4, 0.4, 0.45],
+            light2: [0.3, 0.3, 0.35],
+            fogDensity: 0.005,
+            rainIntensity: 0.7,
+            snowIntensity: 0.0
+        },
+        snowy: {
+            name: "Snowy",
+            skyColor: [0.25, 0.25, 0.3],
+            light1: [0.6, 0.6, 0.7],
+            light2: [0.4, 0.4, 0.5],
+            fogDensity: 0.01,
+            rainIntensity: 0.0,
+            snowIntensity: 1.0
+        },
+        blizzard: {
+            name: "Blizzard",
+            skyColor: [0.4, 0.4, 0.45],
+            light1: [0.5, 0.5, 0.55],
+            light2: [0.4, 0.4, 0.45],
+            fogDensity: 0.02,
+            rainIntensity: 0.0,
+            snowIntensity: 1.5
+        },
+        dawn: {
+            name: "Dawn",
+            skyColor: [0.1, 0.05, 0.1],
+            light1: [0.8, 0.6, 0.7],
+            light2: [0.4, 0.3, 0.5],
+            fogDensity: 0.0,
+            rainIntensity: 0.0,
+            snowIntensity: 0.0
+        }
+    };
+
+    const WEATHER_LIST = Object.keys(WEATHER_TYPES);
+
     const state = {
         bumpStrength: 100.0,
         viewDirection: [0, 0, 0],
         temperatureLights: false,
         dt: 0.0,
         time: 0.0,
+        weather: {
+            current: "clear",
+            config: WEATHER_TYPES.clear,
+            stormFlicker: false
+        },
         lights: {
             // pos1: [30, 40, 30],
             // pos2: [-30, 40, -30],
@@ -38,11 +138,12 @@ function create_scene(gl, program, uniforms) {
         level: {
             platform_locs: [],
             goal_locs: [],
-            spawn_position: null, 
-            platforms: [],        
-            goalArrow: null,    
+            spawn_position: null,
+            platforms: [],
+            goalArrow: null,
             currentPickupPlatform: null,
             currentDropoffPlatform: null,
+            deathY: -100,  // Y level below which taxi dies (for lava levels)
         }
     };
 
@@ -299,21 +400,42 @@ function create_scene(gl, program, uniforms) {
     const MAX_SPAWN_HEIGHT = 15;
     const arrow_offset_y = 10.0;
 
-    function generate_level() {
+    // Track current level to avoid repeating
+    let currentLevelType = 0;
 
-        let lvl = Math.ceil(Math.random() * MAX_LEVELS);
+    function generate_level() {
+        // Pick a random level, favoring any level that isn't the current one
+        let lvl;
+        if (currentLevelType === 0) {
+            // First level - fully random
+            lvl = Math.ceil(Math.random() * MAX_LEVELS);
+        } else {
+            // Favor different levels - 80% chance to pick a different level
+            if (Math.random() < 0.8) {
+                // Pick from levels that aren't the current one
+                let options = [];
+                for (let i = 1; i <= MAX_LEVELS; i++) {
+                    if (i !== currentLevelType) options.push(i);
+                }
+                lvl = options[Math.floor(Math.random() * options.length)];
+            } else {
+                // 20% chance to repeat the same level
+                lvl = Math.ceil(Math.random() * MAX_LEVELS);
+            }
+        }
+
+        currentLevelType = lvl;
 
         switch (lvl) {
             case 1:
-                // return generate_mountain_level();
+                return generate_mountain_level();
             case 2:
-                // return generate_brick_tower_level();
+                return generate_brick_tower_level();
             case 3:
                 return generate_lava_sea_level();
             default:
                 return generate_lava_sea_level();
         }
-            
     }
 
     function generate_brick_tower_level() {
@@ -481,6 +603,7 @@ function create_scene(gl, program, uniforms) {
     function generate_lava_sea_level() {
         const base = create_level_root();
 
+        // Create the lava sea
         const lava_sea = create_model_node(
             {x: 0.0, y: -10.0, z: 0.0},
             {x: 0.0, y: 0.0, z: 0.0},
@@ -491,14 +614,112 @@ function create_scene(gl, program, uniforms) {
             lava_material,
             textures.lava_tex_animated
         );
+        add_children(base, lava_sea);
+
+        // Set death zone - touching lava kills the taxi
+        state.level.deathY = -8;
+
+        // Create spawn platform (thin like mountain style)
+        const spawnX = 0;
+        const spawnZ = -30;
+        const spawnPlatformY = 5;
+
+        const spawnPlatform = create_model_node(
+            {x: spawnX, y: spawnPlatformY, z: spawnZ},
+            {x: 0.0, y: 0.0, z: 0.0},
+            {x: 6.0, y: 1.0, z: 6.0},
+            null,
+            shapes.cube,
+            uniforms,
+            blue_material,
+            null
+        );
+        spawnPlatform.isPlatform = true;
+        spawnPlatform.platformLocation = {x: spawnX, y: spawnPlatformY + 0.5, z: spawnZ, h: 1};
+        add_children(base, spawnPlatform);
 
         state.level.spawn_position = {
-            x: 0.0,
-            y: 1.0, 
-            z: 0.0
+            x: spawnX,
+            y: spawnPlatformY + 1.5,
+            z: spawnZ
         };
 
-        add_children(base, lava_sea);
+        // Create refuel platform (thin style)
+        const refuelX = 25;
+        const refuelZ = 25;
+        const refuelY = 8;
+
+        const refuelPlatform = create_model_node(
+            {x: refuelX, y: refuelY, z: refuelZ},
+            {x: 0.0, y: 0.0, z: 0.0},
+            {x: 5.0, y: 1.0, z: 5.0},
+            null,
+            shapes.cube,
+            uniforms,
+            metal_blue_material,
+            null
+        );
+        refuelPlatform.isRefuelStation = true;
+        refuelPlatform.isPlatform = true;
+        refuelPlatform.platformLocation = {x: refuelX, y: refuelY + 0.5, z: refuelZ, h: 1};
+        state.level.platforms.push(refuelPlatform);
+        add_children(base, refuelPlatform);
+
+        // Generate random floating platforms
+        const spawnClearRadius = 15;
+        const refuelClearRadius = 12;
+
+        let bounds = {
+            xmin: -BASE_WIDTH + 10,
+            xmax: BASE_WIDTH - 10,
+            ymin: 0,
+            ymax: 0,
+            zmin: -BASE_LENGTH + 10,
+            zmax: BASE_LENGTH - 10
+        };
+
+        let points = get_spaced_points(bounds, 15, 40, 15, false);
+
+        for (let point of points) {
+            // Skip if too close to spawn
+            let distSpawn = Math.hypot(point.x - spawnX, point.z - spawnZ);
+            if (distSpawn < spawnClearRadius) continue;
+
+            // Skip if too close to refuel
+            let distRefuel = Math.hypot(point.x - refuelX, point.z - refuelZ);
+            if (distRefuel < refuelClearRadius) continue;
+
+            // Random height for floating platforms (above lava)
+            let platformY = 3 + Math.random() * 15;
+
+            let platform_loc = {
+                x: point.x,
+                y: platformY,
+                z: point.z,
+                h: 1
+            };
+
+            let p = create_model_node(
+                {x: platform_loc.x, y: platform_loc.y, z: platform_loc.z},
+                {x: 0.0, y: 0.0, z: 0.0},
+                {x: 4.0, y: 1.0, z: 4.0},
+                null,
+                shapes.cube,
+                uniforms,
+                blue_material,
+                null
+            );
+
+            p.platformLocation = platform_loc;
+            p.isPlatform = true;
+            state.level.platforms.push(p);
+            state.level.platform_locs.push(platform_loc);
+            add_children(base, p);
+        }
+
+        // Create goal arrow
+        let goal_arrow = create_goal_arrow();
+        if (goal_arrow) add_children(base, goal_arrow);
 
         return base;
     }
@@ -969,18 +1190,22 @@ function create_scene(gl, program, uniforms) {
         arrow.basePosition = { x: newX, y: newY, z: newZ };
     }
 
-    // Get a random platform different from the given one
+    // Get a random platform different from the given one (excludes refuel stations)
     function get_random_dropoff_platform(excludePlatform) {
         const platforms = state.level.platforms;
-        if (platforms.length < 2) {
-            return platforms[0] || null;
+
+        // Filter out refuel stations - they shouldn't be delivery spots
+        const validPlatforms = platforms.filter(p => !p.isRefuelStation);
+
+        if (validPlatforms.length < 2) {
+            return validPlatforms[0] || null;
         }
 
         let dropoffPlatform;
         let attempts = 0;
         do {
-            const idx = Math.floor(Math.random() * platforms.length);
-            dropoffPlatform = platforms[idx];
+            const idx = Math.floor(Math.random() * validPlatforms.length);
+            dropoffPlatform = validPlatforms[idx];
             attempts++;
         } while (dropoffPlatform === excludePlatform && attempts < 20);
 
@@ -1009,12 +1234,13 @@ function create_scene(gl, program, uniforms) {
             state.level.currentDropoffPlatform.isDropoffPlatform = false;
         }
 
-        // Pick a new random pickup platform
+        // Pick a new random pickup platform (exclude refuel stations)
         const platforms = state.level.platforms;
-        if (platforms.length === 0) return;
+        const validPlatforms = platforms.filter(p => !p.isRefuelStation);
+        if (validPlatforms.length === 0) return;
 
-        const idx = Math.floor(Math.random() * platforms.length);
-        const newPickupPlatform = platforms[idx];
+        const idx = Math.floor(Math.random() * validPlatforms.length);
+        const newPickupPlatform = validPlatforms[idx];
 
         // Mark as pickup and move arrow
         newPickupPlatform.isPickupPlatform = true;
@@ -1040,13 +1266,56 @@ function create_scene(gl, program, uniforms) {
     }
 
     function update_lights() {
+        const weather = state.weather.config;
+
         if (state.temperatureLights) {
+            // Temperature mode overrides weather
             state.lights.color1 = [1.0, 0.6, 0.4];
             state.lights.color2 = [0.4, 0.6, 1.0];
         } else {
-            state.lights.color1 = [0.7, 0.7, 0.7];
-            state.lights.color2 = [0.7, 0.7, 0.7];
+            // Use weather lighting
+            state.lights.color1 = [...weather.light1];
+            state.lights.color2 = [...weather.light2];
+
+            // Storm flicker effect
+            if (state.weather.current === "storm" && Math.random() < 0.02) {
+                // Lightning flash
+                state.lights.color1 = [1.0, 1.0, 1.2];
+                state.lights.color2 = [0.8, 0.8, 1.0];
+            }
         }
+    }
+
+    function set_weather(weatherType) {
+        if (WEATHER_TYPES[weatherType]) {
+            state.weather.current = weatherType;
+            state.weather.config = WEATHER_TYPES[weatherType];
+            update_lights();
+            console.log("Weather set to: " + WEATHER_TYPES[weatherType].name);
+        }
+    }
+
+    function set_random_weather() {
+        const randomIndex = Math.floor(Math.random() * WEATHER_LIST.length);
+        const weatherType = WEATHER_LIST[randomIndex];
+        set_weather(weatherType);
+        return weatherType;
+    }
+
+    function get_weather_sky_color() {
+        return state.weather.config.skyColor;
+    }
+
+    function get_weather_name() {
+        return state.weather.config.name;
+    }
+
+    function get_rain_intensity() {
+        return state.weather.config.rainIntensity || 0.0;
+    }
+
+    function get_snow_intensity() {
+        return state.weather.config.snowIntensity || 0.0;
     }
 
     function toggle_temperature_lights() {
@@ -1063,6 +1332,10 @@ function create_scene(gl, program, uniforms) {
         state.level.goalArrow = null;
         state.level.currentPickupPlatform = null;
         state.level.currentDropoffPlatform = null;
+        state.level.deathY = -100;  // Reset death zone (lava levels will set this)
+
+        // Set random weather for new level
+        set_random_weather();
 
         // Rebuild the entire scene
         let base = generate_level();
@@ -1084,5 +1357,12 @@ function create_scene(gl, program, uniforms) {
         get_random_dropoff_platform,
         set_goal_arrow_target,
         setup_next_passenger,
+        set_weather,
+        set_random_weather,
+        get_weather_sky_color,
+        get_weather_name,
+        get_rain_intensity,
+        get_snow_intensity,
+        WEATHER_TYPES,
     };
 }
