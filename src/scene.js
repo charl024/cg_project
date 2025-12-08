@@ -320,17 +320,15 @@ function create_scene(gl, program, uniforms) {
 
         // World generation parameters
         let max_hill_height = 8;
-        let grid_width = 50;
-        let grid_length = 50;
+        let grid_width = 25;
+        let grid_length = 25;
         let cell_width = (2 * BASE_WIDTH) / grid_width;
         let cell_length = (2 * BASE_LENGTH) / grid_length;
         let freq = 0.1;
 
-        // Refuel tower location (fixed)
         const refuelX = 10;
         const refuelZ = -25;
 
-        // Step 1: Generate ground noise map
         generate_perlin_terrain(
             base,
             max_hill_height,
@@ -343,7 +341,6 @@ function create_scene(gl, program, uniforms) {
             textures.grass_tex
         );
 
-        // Step 2: Select taxi spawn position (once per level), avoiding refuel tower
         if (!state.level.spawn_position) {
             state.level.spawn_position = select_taxi_spawn_position(
                 grid_width,
@@ -360,7 +357,6 @@ function create_scene(gl, program, uniforms) {
         const spawnX = state.level.spawn_position.x;
         const spawnZ = state.level.spawn_position.z;
 
-        // Step 3: Generate towers avoiding taxi spawn position
         create_refuel_tower(
             base,
             refuelX,
@@ -462,7 +458,6 @@ function create_scene(gl, program, uniforms) {
             max_hill_height
         );
 
-        // Override spawn position to be on a validated platform
         if (state.level.platforms.length > 0) {
             const spawnPlatform = select_spawn_platform(refuelX, refuelZ);
             const loc = spawnPlatform.platformLocation;
@@ -470,7 +465,7 @@ function create_scene(gl, program, uniforms) {
 
             state.level.spawn_position = {
                 x: loc.x,
-                y: platformTop + 1.5, // Just above platform surface
+                y: platformTop + 1.5, 
                 z: loc.z
             };
         }
@@ -517,7 +512,6 @@ function create_scene(gl, program, uniforms) {
         const terrainTopY = get_terrain_top_y(worldX, worldZ, grid_width, grid_length, cell_width, cell_length, freq, max_hill_height);
         const distToRefuel = Math.hypot(worldX - refuelX, worldZ - refuelZ);
 
-        // Check spawn zone
         const inSpawnZone = (
             worldZ >= -BASE_LENGTH + 10 &&
             worldZ <= -BASE_LENGTH / 2 &&
@@ -525,7 +519,6 @@ function create_scene(gl, program, uniforms) {
             worldX <= BASE_WIDTH / 2
         );
 
-        // Find if there's a platform near this position
         let nearestPlatform = null;
         let nearestPlatformDist = Infinity;
 
@@ -543,7 +536,6 @@ function create_scene(gl, program, uniforms) {
 
         if (hasPlatformHere) {
             const loc = nearestPlatform.platformLocation;
-            // Platform top = center Y + half height
             platformTopY = loc.y + (loc.h / 2);
         }
 
@@ -560,7 +552,6 @@ function create_scene(gl, program, uniforms) {
         };
     }
 
-    // Find a valid platform for spawning (mountain level)
     function select_spawn_platform(refuelX, refuelZ) {
         const validPlatforms = [];
         const MIN_REFUEL_DIST = 15;
@@ -572,7 +563,6 @@ function create_scene(gl, program, uniforms) {
 
             if (distToRefuel < MIN_REFUEL_DIST) continue;
 
-            // Check distance to other platforms
             let tooClose = false;
             for (const other of state.level.platforms) {
                 if (other === platform) continue;
@@ -585,7 +575,6 @@ function create_scene(gl, program, uniforms) {
             }
             if (tooClose) continue;
 
-            // Prefer platforms not at edges of map
             const edgeMargin = 10;
             const nearEdge = (
                 Math.abs(loc.x) > BASE_WIDTH - edgeMargin ||
@@ -600,7 +589,6 @@ function create_scene(gl, program, uniforms) {
         }
 
         if (validPlatforms.length === 0) {
-            // Fallback: just pick any platform far from refuel
             for (const platform of state.level.platforms) {
                 const loc = platform.platformLocation;
                 if (Math.hypot(loc.x - refuelX, loc.z - refuelZ) >= MIN_REFUEL_DIST) {
@@ -610,11 +598,9 @@ function create_scene(gl, program, uniforms) {
             return state.level.platforms[0];
         }
 
-        // Prefer platforms not near edges
         const interiorPlatforms = validPlatforms.filter(p => !p.nearEdge);
         const candidates = interiorPlatforms.length > 0 ? interiorPlatforms : validPlatforms;
 
-        // Pick randomly from valid candidates
         const idx = Math.floor(Math.random() * candidates.length);
         return candidates[idx].platform;
     }
@@ -649,25 +635,21 @@ function create_scene(gl, program, uniforms) {
                 grid_width, grid_length, cell_width, cell_length, freq, max_hill_height
             );
 
-            // Must be far enough from refuel tower
             if (cell.distToRefuel < MIN_REFUEL_DIST) continue;
 
-            // If there's a platform here, spawn on it
             if (cell.hasPlatformHere && cell.platformTopY !== null) {
                 return {
                     x: worldX,
-                    y: cell.platformTopY + 1.5, // Just above platform surface
+                    y: cell.platformTopY + 1.5,
                     z: worldZ
                 };
             }
 
-            // Otherwise this is a valid terrain cell
             if (!bestCell || cell.distToRefuel > bestCell.distToRefuel) {
                 bestCell = cell;
             }
         }
 
-        // Use best terrain cell found
         if (bestCell) {
             return {
                 x: bestCell.worldX,
@@ -880,7 +862,6 @@ function create_scene(gl, program, uniforms) {
             return null;
         }
 
-        // Pick a random platform for initial pickup location
         let rand_platform_idx = Math.floor(Math.random() * max_valid_platforms);
         let pickupPlatform = state.level.platforms[rand_platform_idx];
         let platform_loc = pickupPlatform.platformLocation;
@@ -917,7 +898,6 @@ function create_scene(gl, program, uniforms) {
         arrow_tail.isGoalArrow = true;
         arrow_head.isGoalArrow = true;
 
-        // Store arrow base position for animation
         arrow_tail.basePosition = {
             x: platform_loc.x,
             y: platform_top + arrow_offset_y,
@@ -940,7 +920,6 @@ function create_scene(gl, program, uniforms) {
 
         add_children(arrow_tail, arrow_head);
 
-        // Store reference to the goal arrow
         state.level.goalArrow = arrow_tail;
 
         return arrow_tail;
