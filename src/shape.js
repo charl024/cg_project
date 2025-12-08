@@ -67,15 +67,39 @@ function create_texture(gl, tex_src) {
 
     const texture = gl.createTexture();
     const texture_info = {
-        texture,
+        texture: texture,
         texOn: true,
         tex_img_src: tex_src,
         isVideo: false,
-        video: null
+        video: null,
+        noMipmap: null
     };
 
-    // Register texture for filtering toggle
-    window.registeredTextures.push(texture);
+    window.registeredTextures.push(texture_info);
+
+    if (typeof tex_src === "string" && tex_src.endsWith(".webm")) {
+
+        const video = document.createElement("video");
+        video.src = tex_src;
+        video.loop = true;
+        video.muted = true;
+        video.autoplay = true;
+        video.playsInline = true;
+
+        video.addEventListener("canplay", () => video.play());
+
+        texture_info.video = video;
+        texture_info.isVideo = true;
+        texture_info.noMipmap = true;
+
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+        return texture_info;
+    }
 
     if (typeof tex_src === "string") {
         const tex_img = new Image();
@@ -88,20 +112,28 @@ function create_texture(gl, tex_src) {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
         };
-    } else if (tex_src instanceof HTMLVideoElement) {
+        texture_info.noMipmap = false;
+        return texture_info;
+    }
+
+    if (tex_src instanceof HTMLVideoElement) {
         texture_info.video = tex_src;
         texture_info.isVideo = true;
+
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    } else {
-        texture_info.texOn = false;
+        texture_info.noMipmap = true;
+        return texture_info;
     }
 
+    texture_info.noMipmap = false;
+    texture_info.texOn = false;
     return texture_info;
 }
+
 
 function update_video_texture(gl, texture_info) {
     if (!texture_info.isVideo) return;

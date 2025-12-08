@@ -8,7 +8,8 @@ function create_scene(gl, program, uniforms) {
         grass_tex: create_texture(gl, "src/textures/grass_tex.png"),
         red_brick_tex: create_texture(gl, "src/textures/red_brick_tex.png"),
         fabric_black_tex: create_texture(gl, "src/textures/fabric_black_tex.jpg"),
-        snow_tex: create_texture(gl, "src/textures/snow_tex.jpg")
+        snow_tex: create_texture(gl, "src/textures/snow_tex.jpg"),
+        lava_tex_animated: create_texture(gl, "src/textures/lava_tex_animated.webm")
     };
 
     const shapes = {
@@ -25,7 +26,7 @@ function create_scene(gl, program, uniforms) {
         dt: 0.0,
         time: 0.0,
         lights: {
-            // pos1: [30, 40, 30],   // High above for 3D area
+            // pos1: [30, 40, 30],
             // pos2: [-30, 40, -30],
             dir1: norm([ -0.3, -1.0, -0.2 ]),
             dir2: norm([ 0.2, -1.0, 0.4 ]),
@@ -290,7 +291,7 @@ function create_scene(gl, program, uniforms) {
         return taxiRoot;
     }
 
-    const MAX_LEVELS = 2;
+    const MAX_LEVELS = 3;
     const BASE_WIDTH = 50;
     const BASE_HEIGHT = 20;
     const BASE_LENGTH = 50;
@@ -304,12 +305,13 @@ function create_scene(gl, program, uniforms) {
 
         switch (lvl) {
             case 1:
-                return generate_mountain_level();
+                // return generate_mountain_level();
             case 2:
-                return generate_brick_tower_level();
-        
+                // return generate_brick_tower_level();
+            case 3:
+                return generate_lava_sea_level();
             default:
-                return generate_brick_tower_level();
+                return generate_lava_sea_level();
         }
             
     }
@@ -476,7 +478,30 @@ function create_scene(gl, program, uniforms) {
         return base;
     }
 
+    function generate_lava_sea_level() {
+        const base = create_level_root();
 
+        const lava_sea = create_model_node(
+            {x: 0.0, y: -10.0, z: 0.0},
+            {x: 0.0, y: 0.0, z: 0.0},
+            {x: 200.0, y: 1.0, z: 200.0},
+            null,
+            shapes.cube,
+            uniforms,
+            lava_material,
+            textures.lava_tex_animated
+        );
+
+        state.level.spawn_position = {
+            x: 0.0,
+            y: 1.0, 
+            z: 0.0
+        };
+
+        add_children(base, lava_sea);
+
+        return base;
+    }
 
     // All helper functions for level generation
 

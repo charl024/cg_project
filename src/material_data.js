@@ -73,6 +73,17 @@ const metal_orange_material = {
     bumpOn: true
 };
 
+const lava_material = {
+    Ka: 0.6,                         
+    Kd: 0.4,                  
+    Ks: 1.2,                        
+    alpha: 50.0,                 
+    color: colorconvert(255, 90, 10),
+    bumpOn: false,
+    textureScale: [1.0, 1.0]
+};
+
+
 const metal_red_material = {
     Kd: 0.2,
     Ks: 0.9,
