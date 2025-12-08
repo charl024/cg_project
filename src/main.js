@@ -262,7 +262,6 @@ function update_camera(dt) {
 }
 
 function compute_view_matrix() {
-    // Standard OpenGL lookAt matrix
     const eyeX = camera.pos.x;
     const eyeY = camera.pos.y;
     const eyeZ = camera.pos.z;
@@ -270,14 +269,14 @@ function compute_view_matrix() {
     const targetY = camera.lookAt.y;
     const targetZ = camera.lookAt.z;
 
-    // Z axis = normalize(eye - target) - points away from target
+    // Z axis 
     let zx = eyeX - targetX;
     let zy = eyeY - targetY;
     let zz = eyeZ - targetZ;
     let zLen = Math.sqrt(zx * zx + zy * zy + zz * zz);
     if (zLen > 0.0001) { zx /= zLen; zy /= zLen; zz /= zLen; }
 
-    // X axis = normalize(cross(up, z))
+    // X axis 
     const upX = 0, upY = 1, upZ = 0;
     let xx = upY * zz - upZ * zy;
     let xy = upZ * zx - upX * zz;
@@ -285,7 +284,7 @@ function compute_view_matrix() {
     let xLen = Math.sqrt(xx * xx + xy * xy + xz * xz);
     if (xLen > 0.0001) { xx /= xLen; xy /= xLen; xz /= xLen; }
 
-    // Y axis = cross(z, x)
+    // Y axis
     const yx = zy * xz - zz * xy;
     const yy = zz * xx - zx * xz;
     const yz = zx * xy - zy * xx;
@@ -308,7 +307,7 @@ const projection = perspective(
     Math.PI / 4,
     canvas.width / canvas.height,
     0.1,
-    200  // Increased far plane for larger play area
+    200
 );
 
 // Scene setup lives in scene.js
@@ -508,7 +507,7 @@ function get_landing_multiplier(quality) {
     }
 }
 
-// Handle a crash - lose a life and reset position (keep passenger!)
+// Handle a crash, lose a life and reset position (keep passenger!)
 function handle_crash() {
     gameState.lives--;
     gameState.landing.lastLandingQuality = "crash";
@@ -534,20 +533,17 @@ function show_crash_animation() {
     const overlay = document.getElementById("crashOverlay");
     const text = document.getElementById("crashText");
 
-    // Remove hidden class to show
     overlay.classList.remove("hidden");
     text.classList.remove("hidden");
 
     // Force animation restart by removing and re-adding elements
     overlay.style.animation = "none";
     text.style.animation = "none";
-    // Trigger reflow
     overlay.offsetHeight;
     text.offsetHeight;
     overlay.style.animation = "";
     text.style.animation = "";
 
-    // Hide after animation completes
     setTimeout(() => {
         overlay.classList.add("hidden");
         text.classList.add("hidden");
@@ -564,16 +560,13 @@ function show_level_advance_animation(level, bonusLife) {
     text.textContent = `LEVEL ${level}`;
     subtext.textContent = bonusLife ? "+1 LIFE" : "FUEL RESTORED";
 
-    // Remove hidden class to show
     overlay.classList.remove("hidden");
     text.classList.remove("hidden");
     subtext.classList.remove("hidden");
 
-    // Force animation restart
     overlay.style.animation = "none";
     text.style.animation = "none";
     subtext.style.animation = "none";
-    // Trigger reflow
     overlay.offsetHeight;
     text.offsetHeight;
     subtext.offsetHeight;
@@ -581,7 +574,6 @@ function show_level_advance_animation(level, bonusLife) {
     text.style.animation = "";
     subtext.style.animation = "";
 
-    // Hide after animation completes
     setTimeout(() => {
         overlay.classList.add("hidden");
         text.classList.add("hidden");
@@ -621,7 +613,6 @@ function pickup_passenger(platform) {
     gameState.passenger.pickupTime = gameState.time;
     gameState.passenger.pickupPlatform = platform;
 
-    // Find a random dropoff platform (different from pickup)
     const dropoffPlatform = scene_builder.get_random_dropoff_platform(platform);
     gameState.passenger.dropoffPlatform = dropoffPlatform;
 
@@ -664,7 +655,7 @@ function deliver_passenger(landingQuality) {
     scene_builder.setup_next_passenger();
 }
 
-// Generate a new level (for level progression, preserves money/lives)
+// Generate a new level
 function generate_new_level() {
     // Regenerate the level and get new spawn position
     const newSpawnPos = scene_builder.regenerate_level();
@@ -867,7 +858,7 @@ function update_taxi(dt) {
         accelZ = forwardZ * moveInput * taxiPhysics.moveAccel;
     }
 
-    // Vertical thrust (Space/Shift) - only if has fuel
+    // Vertical thrust (Space/Shift)
     let accelY = -taxiPhysics.gravity;
     if (inputKeys.thrust && hasFuel) {
         accelY = taxiPhysics.thrustPower - taxiPhysics.gravity;
@@ -891,12 +882,12 @@ function update_taxi(dt) {
         taxiPhysics.velocity.z *= scale;
     }
 
-    // Clamp vertical velocity - only limit upward velocity, allow unlimited falling
+    // Clamp vertical velocity
     if (taxiPhysics.velocity.y > taxiPhysics.maxVelocityY) {
         taxiPhysics.velocity.y = taxiPhysics.maxVelocityY;
     }
 
-    // Model rotation offset (taxi model faces +X, we want it to face forward direction)
+    // Model rotation offset
     const modelRotOffset = Math.PI / 2;
 
     // Helper function to apply taxi transform
@@ -1113,7 +1104,6 @@ function render(now) {
 
 // Initialize camera position based on taxi
 function init_camera() {
-    // Camera will be positioned on first update_camera call
     update_camera(0);
 }
 
@@ -1123,8 +1113,6 @@ register_taxi_input();
 register_ui();
 
 window.onload = () => {
-    // Generate initial level using the same logic as pressing 'n'
-    // This ensures all resources are loaded before generating the level
     generate_new_level();
 
     init_camera();

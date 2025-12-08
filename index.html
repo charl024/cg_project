@@ -442,7 +442,7 @@
       <div class="game-wrapper" id="gameWrapper">
         <canvas id="glcanvas" width="1280" height="720"></canvas>
 
-        <!-- CRT Overlay (CSS-based, covers canvas + UI) -->
+        <!-- CRT Overlay -->
         <div id="crtOverlay"></div>
 
         <!-- Space Taxi Game UI Overlay -->
@@ -704,7 +704,7 @@ void main() {
     vec2 uv = curve(vTexCoord);
     vec3 col;
 
-    // Out of bounds check (black border)
+    // Out of bounds check
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
         fragColor = vec4(0.0, 0.0, 0.0, 1.0);
         return;
@@ -720,11 +720,10 @@ void main() {
     float scanline = sin(uv.y * uResolution.y * 1.5) * 0.04;
     col -= scanline;
 
-    // Vertical lines (phosphor mask)
+    // Vertical lines
     float vline = sin(uv.x * uResolution.x * 1.5) * 0.02;
     col -= vline;
 
-    // Vignette
     float vignette = uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y);
     vignette = clamp(pow(16.0 * vignette, 0.3), 0.0, 1.0);
     col *= vignette;
@@ -732,10 +731,10 @@ void main() {
     // Slight flicker
     col *= 0.95 + 0.05 * sin(uTime * 10.0);
 
-    // Boost brightness slightly to compensate for darkening effects
+    // Boost brightness slightly
     col *= 1.2;
 
-    // Clamp and add slight green tint for retro feel
+    // Clamp and add slight green tint
     col = clamp(col, 0.0, 1.0);
     col.g *= 1.05;
 
@@ -754,10 +753,10 @@ uniform sampler2D uScreen;
 uniform vec2 uResolution;
 uniform float uTime;
 
-// Pixelation resolution (lower = more pixelated)
+// Pixelation resolution
 const float PIXEL_SIZE = 4.0;
 
-// Color quantization levels (lower = more posterized)
+// Color quantization levels
 const float COLOR_LEVELS = 16.0;
 
 // Bloom settings
@@ -770,24 +769,20 @@ vec2 pixelate(vec2 uv) {
     return floor(uv * pixelCount) / pixelCount;
 }
 
-// Posterize/quantize colors
 vec3 posterize(vec3 col) {
     return floor(col * COLOR_LEVELS) / COLOR_LEVELS;
 }
 
-// Simple bloom - sample surrounding pixels for glow
+// Simple bloom
 vec3 bloom(vec2 uv) {
     vec2 pixelSize = PIXEL_SIZE / uResolution;
     vec3 bloomCol = vec3(0.0);
 
-    // Sample in a cross pattern
     for (int x = -2; x <= 2; x++) {
         for (int y = -2; y <= 2; y++) {
             vec2 offset = vec2(float(x), float(y)) * pixelSize * 2.0;
             vec2 sampleUV = pixelate(uv + offset);
             vec3 sampleCol = texture(uScreen, sampleUV).rgb;
-
-            // Only bloom bright pixels
             float brightness = dot(sampleCol, vec3(0.299, 0.587, 0.114));
             if (brightness > BLOOM_THRESHOLD) {
                 bloomCol += sampleCol * (brightness - BLOOM_THRESHOLD);
@@ -798,30 +793,27 @@ vec3 bloom(vec2 uv) {
     return bloomCol / 25.0 * BLOOM_INTENSITY;
 }
 
-// Retro arcade color grading
+// Retro arcade color
 vec3 retroColors(vec3 col) {
     // Boost saturation
     float gray = dot(col, vec3(0.299, 0.587, 0.114));
     col = mix(vec3(gray), col, 1.4);
 
-    // Warm shift (more orange/yellow in highlights)
+    // Warm shift
     col.r *= 1.1;
     col.b *= 0.9;
 
     // Boost contrast
     col = (col - 0.5) * 1.2 + 0.5;
 
-    // Crush blacks slightly (like old displays)
+    // Crush blacks slightly
     col = max(col, vec3(0.05));
 
     return clamp(col, 0.0, 1.0);
 }
 
 void main() {
-    // Pixelate
     vec2 pixelUV = pixelate(vTexCoord);
-
-    // Sample base color
     vec3 col = texture(uScreen, pixelUV).rgb;
 
     // Apply retro color grading
@@ -833,9 +825,7 @@ void main() {
     // Add bloom glow
     col += bloom(vTexCoord);
 
-    // Final clamp
     col = clamp(col, 0.0, 1.0);
-
     fragColor = vec4(col, 1.0);
 }
   </script>

@@ -509,8 +509,6 @@ function create_scene(gl, program, uniforms) {
         const gx = Math.max(0, Math.min(grid_width - 1, Math.floor((worldX + BASE_WIDTH) / cell_width)));
         const gz = Math.max(0, Math.min(grid_length - 1, Math.floor((worldZ + BASE_LENGTH) / cell_length)));
         const terrainHeight = sample_terrain_height(gx, gz, freq, max_hill_height);
-        // Terrain cube is centered at (terrainHeight/2 - 5) with height (terrainHeight + 1)
-        // So top = (terrainHeight/2 - 5) + (terrainHeight + 1)/2 = terrainHeight - 4.5
         return terrainHeight - 2;
     }
 
@@ -519,7 +517,7 @@ function create_scene(gl, program, uniforms) {
         const terrainTopY = get_terrain_top_y(worldX, worldZ, grid_width, grid_length, cell_width, cell_length, freq, max_hill_height);
         const distToRefuel = Math.hypot(worldX - refuelX, worldZ - refuelZ);
 
-        // Check spawn zone (back quarter of map, center X)
+        // Check spawn zone
         const inSpawnZone = (
             worldZ >= -BASE_LENGTH + 10 &&
             worldZ <= -BASE_LENGTH / 2 &&
@@ -540,7 +538,6 @@ function create_scene(gl, program, uniforms) {
             }
         }
 
-        // Platform is "at" this cell if within platform radius (platforms are 4x4 or 3x3)
         const hasPlatformHere = nearestPlatform && nearestPlatformDist < 2.0;
         let platformTopY = null;
 
@@ -567,7 +564,7 @@ function create_scene(gl, program, uniforms) {
     function select_spawn_platform(refuelX, refuelZ) {
         const validPlatforms = [];
         const MIN_REFUEL_DIST = 15;
-        const MIN_PLATFORM_SPACING = 8; // Don't spawn on platforms too close to others
+        const MIN_PLATFORM_SPACING = 8;
 
         for (const platform of state.level.platforms) {
             const loc = platform.platformLocation;
@@ -575,7 +572,7 @@ function create_scene(gl, program, uniforms) {
 
             if (distToRefuel < MIN_REFUEL_DIST) continue;
 
-            // Check distance to other platforms (avoid cramped areas)
+            // Check distance to other platforms
             let tooClose = false;
             for (const other of state.level.platforms) {
                 if (other === platform) continue;
@@ -610,7 +607,6 @@ function create_scene(gl, program, uniforms) {
                     return platform;
                 }
             }
-            // Last resort: first platform
             return state.level.platforms[0];
         }
 
@@ -624,7 +620,6 @@ function create_scene(gl, program, uniforms) {
     }
 
     function select_taxi_spawn_position(grid_width, grid_length, cell_width, cell_length, freq, max_hill_height, refuelX, refuelZ) {
-        // Select a random GRID CELL in the back quarter of the map (where player starts)
         const spawnZoneMinZ = -BASE_LENGTH + 10;
         const spawnZoneMaxZ = -BASE_LENGTH / 2;
         const spawnZoneMinX = -BASE_WIDTH / 2;
@@ -676,12 +671,11 @@ function create_scene(gl, program, uniforms) {
         if (bestCell) {
             return {
                 x: bestCell.worldX,
-                y: bestCell.terrainTopY + 1.5, // Just above terrain surface
+                y: bestCell.terrainTopY + 1.5,
                 z: bestCell.worldZ
             };
         }
 
-        // Fallback: center of spawn zone
         const fallbackX = 0;
         const fallbackZ = -BASE_LENGTH * 0.75;
         const fallbackY = get_terrain_top_y(
