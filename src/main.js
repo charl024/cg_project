@@ -309,9 +309,10 @@ const scene = scene_builder.state;
 
 // UI setup
 function register_ui() {
-    document.getElementById("TLButton").addEventListener("click", () => {
-        scene_builder.toggle_temperature_lights();
-    });
+    // currently empty
+    // document.getElementById("TLButton").addEventListener("click", () => {
+        // scene_builder.toggle_temperature_lights();
+    // });
 }
 
 function set_global_uniforms(view, elapsed) {
