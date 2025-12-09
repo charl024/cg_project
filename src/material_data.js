@@ -110,10 +110,10 @@ const metal_blue_material = {
 };
 
 const grass_material = {
-    Kd: 0.5,
+    Kd: 1.0,
     Ks: 0.5,
     alpha: 10.0,
-    color: colorconvert(38, 180, 28),
+    color: colorconvert(38, 255, 28),
     bumpOn: true
 }
 
