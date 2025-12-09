@@ -38,15 +38,6 @@ function create_scene(gl, program, uniforms) {
             rainIntensity: 0.0,
             snowIntensity: 0.0
         },
-        night: {
-            name: "Night",
-            skyColor: [0.0, 0.0, 0.05],
-            light1: [0.2, 0.2, 0.4],
-            light2: [0.1, 0.1, 0.2],
-            fogDensity: 0.0,
-            rainIntensity: 0.0,
-            snowIntensity: 0.0
-        },
         space: {
             name: "Space",
             skyColor: [0.0, 0.0, 0.02],
@@ -603,7 +594,6 @@ function create_scene(gl, program, uniforms) {
     function generate_lava_sea_level() {
         const base = create_level_root();
 
-        // Create the lava sea
         const lava_sea = create_model_node(
             {x: 0.0, y: -10.0, z: 0.0},
             {x: 0.0, y: 0.0, z: 0.0},
@@ -616,10 +606,8 @@ function create_scene(gl, program, uniforms) {
         );
         add_children(base, lava_sea);
 
-        // Set death zone - touching lava kills the taxi
         state.level.deathY = -8;
 
-        // Create spawn platform (thin like mountain style)
         const spawnX = 0;
         const spawnZ = -30;
         const spawnPlatformY = 5;
@@ -631,7 +619,7 @@ function create_scene(gl, program, uniforms) {
             null,
             shapes.cube,
             uniforms,
-            blue_material,
+            metal_gray_material,
             null
         );
         spawnPlatform.isPlatform = true;
@@ -678,18 +666,15 @@ function create_scene(gl, program, uniforms) {
             zmax: BASE_LENGTH - 10
         };
 
-        let points = get_spaced_points(bounds, 15, 40, 15, false);
+        let points = get_spaced_points(bounds, 40, 40, 15, false);
 
         for (let point of points) {
-            // Skip if too close to spawn
             let distSpawn = Math.hypot(point.x - spawnX, point.z - spawnZ);
             if (distSpawn < spawnClearRadius) continue;
 
-            // Skip if too close to refuel
             let distRefuel = Math.hypot(point.x - refuelX, point.z - refuelZ);
             if (distRefuel < refuelClearRadius) continue;
 
-            // Random height for floating platforms (above lava)
             let platformY = 3 + Math.random() * 15;
 
             let platform_loc = {
@@ -706,7 +691,7 @@ function create_scene(gl, program, uniforms) {
                 null,
                 shapes.cube,
                 uniforms,
-                blue_material,
+                metal_gray_material,
                 null
             );
 

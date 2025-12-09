@@ -41,6 +41,14 @@ const blue_material = {
     bumpOn: true
 }
 
+const green_material = {
+    Kd: 0.2,
+    Ks: 0.05,
+    alpha: 50.0,
+    color: colorconvert(130,235,130),
+    bumpOn: false
+}
+
 const wood_material = {   
     Kd: 0.2,
     Ks: 0.1,
