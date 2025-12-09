@@ -465,6 +465,84 @@
     }
   }
 
+  .gameover-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(120, 0, 140, 0.8) 0%, rgba(40, 0, 60, 0.8) 50%, transparent 80%);
+  z-index: 200;
+  pointer-events: none;
+  animation: gameOverFlash 1.8s ease-out forwards;
+}
+
+.gameover-overlay.hidden {
+  display: none;
+}
+
+.gameover-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Courier New', monospace;
+  font-size: 72px;
+  font-weight: bold;
+  color: #ff00ff;
+  text-shadow:
+      0 0 25px #ff00ff,
+      0 0 50px #aa00aa,
+      4px 4px 0 #000;
+  z-index: 201;
+  pointer-events: none;
+  animation: gameOverTextAnim 2.2s ease-out forwards;
+}
+
+.gameover-text.hidden {
+  display: none;
+}
+
+@keyframes gameOverFlash {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  20% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.3);
+  }
+}
+
+@keyframes gameOverTextAnim {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.3);
+  }
+  40% {
+    transform: translate(-50%, -50%) scale(1.0);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+}
+  
+
 </style>
 </head>
 
@@ -527,6 +605,9 @@
 
         <div id="crashOverlay" class="crash-overlay hidden"></div>
         <div id="crashText" class="crash-text hidden">CRASH!</div>
+
+        <div id="gameOverOverlay" class="gameover-overlay hidden"></div>
+        <div id="gameOverText" class="gameover-text hidden">GAME OVER</div>
 
         <div id="levelOverlay" class="level-overlay hidden"></div>
         <div id="levelText" class="level-text hidden">LEVEL 2</div>

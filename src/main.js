@@ -356,6 +356,7 @@ const gameState = {
     horizontalFuelRate: 2.0,   // fuel per second when using horizontal thrust
     refuelRate: 33.0,          // fuel per second when on refuel station
     isRefueling: false,        // track if currently on refuel station
+    isGameOver: false,
 
     // Passenger system
     passenger: {
@@ -499,6 +500,7 @@ function handle_crash() {
     gameState.lives--;
     gameState.landing.lastLandingQuality = "crash";
 
+
     // Show crash animation
     show_crash_animation();
 
@@ -524,8 +526,28 @@ function handle_crash() {
 
         // Set up a new pickup location
         scene_builder.setup_next_passenger();
+    } else {
+        trigger_game_over();
     }
 }
+
+function trigger_game_over() {
+    gameState.isGameOver = true;
+
+    taxiPhysics.velocity.x = 0;
+    taxiPhysics.velocity.y = 0;
+    taxiPhysics.velocity.z = 0;
+
+    // disable inputs
+    inputKeys.forward = false;
+    inputKeys.backward = false;
+    inputKeys.left = false;
+    inputKeys.right = false;
+    inputKeys.thrust = false;
+
+    show_game_over_screen();
+}
+
 
 // Show crash animation overlay
 function show_crash_animation() {
@@ -548,6 +570,23 @@ function show_crash_animation() {
         text.classList.add("hidden");
     }, 1200);
 }
+
+// show game over overlay
+function show_game_over_screen() {
+    const overlay = document.getElementById("gameOverOverlay");
+    const text = document.getElementById("gameOverText");
+
+    overlay.classList.remove("hidden");
+    text.classList.remove("hidden");
+
+    // restart animation
+    overlay.style.animation = "none";
+    text.style.animation = "none";
+    overlay.offsetHeight; text.offsetHeight;
+    overlay.style.animation = "";
+    text.style.animation = "";
+}
+
 
 // Show level advance animation overlay
 function show_level_advance_animation(level, bonusLife) {
@@ -751,6 +790,10 @@ function register_taxi_input() {
             scene_builder.set_random_weather();
             console.log("Weather changed to:", scene_builder.get_weather_name());
         }
+        if (e.key === "Enter" && gameState.isGameOver) {
+            // restart game
+            restart_game();
+        }
     });
 
     document.addEventListener("keyup", (e) => {
@@ -762,12 +805,34 @@ function register_taxi_input() {
     });
 }
 
+// restart game, reset game state
+function restart_game() {
+    gameState.isGameOver = false;
+    gameState.lives = 5;
+    gameState.money = 0;
+    gameState.fuel = gameState.maxFuel;
+
+    const spawnPos = scene.level.spawn_position;
+    reset_taxi_to_spawn(spawnPos);
+
+    startTime = performance.now();
+
+    document.getElementById("gameOverOverlay").classList.add("hidden");
+    document.getElementById("gameOverText").classList.add("hidden");
+}
+
+
 // Reset taxi position and lose a life
 function reset_taxi() {
     if (gameState.lives <= 0) return;  // No lives left
 
     // Lose a life
     gameState.lives--;
+
+    if (gameState.lives <= 0) {
+        trigger_game_over();
+        return;
+    }
 
     // Reset taxi position to dynamic spawn point from level
     taxiPhysics.position.x = scene.level.spawn_position.x;
@@ -1058,6 +1123,11 @@ function render(now) {
 
     const elapsed = (now - startTime) / 1000.0;
     lastTime = now;
+
+    if (gameState.isGameOver) {
+        update_ui();
+        return requestAnimationFrame(render);
+    }
 
     // Update game time
     gameState.time = elapsed;
