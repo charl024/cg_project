@@ -826,7 +826,7 @@ function create_scene(gl, program, uniforms) {
         const gx = Math.max(0, Math.min(grid_width - 1, Math.floor((worldX + BASE_WIDTH) / cell_width)));
         const gz = Math.max(0, Math.min(grid_length - 1, Math.floor((worldZ + BASE_LENGTH) / cell_length)));
         const terrainHeight = sample_terrain_height(gx, gz, freq, max_hill_height);
-        return terrainHeight - 2;
+        return terrainHeight;
     }
 
     // Analyze a cell to determine spawn suitability
