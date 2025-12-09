@@ -975,55 +975,63 @@ function update_taxi(dt) {
     walk_update(scene.root, stack, mat4Identity());
 
     // Check for collisions with environment
-    let collisions = check_taxi_collisions(scene.taxi, scene.root);
+    // let collisions = check_taxi_collisions(scene.taxi, scene.root);
     const wasOnGround = taxiPhysics.onGround;
-    const impactVelocity = taxiPhysics.velocity.y;  // Store velocity before it gets reset
+    const impactVelocity = Math.min(taxiPhysics.velocity.y, 0);  // downward only
     taxiPhysics.onGround = false;
     gameState.isRefueling = false;
     let landedPlatform = null;
 
-    // If currently colliding, check which direction to block
-    for (let collision of collisions) {
-        const taxiCenter = scene.taxi.world_bounding.center;
-
-        // Check if taxi bottom is near object top (on ground)
-        const taxiBottom = taxiCenter[1] - scene.taxi.world_bounding.halfsize[1];
-        const objTop = collision.max[1];
-
-        if (Math.abs(taxiBottom - objTop) < 0.3 && taxiPhysics.velocity.y <= 0) {
-            taxiPhysics.onGround = true;
-            taxiPhysics.velocity.y = 0;
-
-            // Track which platform we landed on
-            if (collision.node) {
-                landedPlatform = collision.node;
-                
-                // Check if this is a refuel station
-                if (collision.node.isRefuelStation) {
-                    gameState.isRefueling = true;
-                }
-            }
-            break; // ground hit detected
-        }
-    }
-
-    // Detect landing (transition from air to ground)
-    if (taxiPhysics.onGround && !wasOnGround && impactVelocity < -0.5) {
-        handle_landing(impactVelocity, landedPlatform);
-    }
-
     // Try moving in Y direction
     let newY = currentY + taxiPhysics.velocity.y * dt;
+
     applyTaxiTransform(currentX, newY, currentZ);
     stack = [];
     walk_update(scene.root, stack, mat4Identity());
-    // collisions = check_taxi_collisions(scene.taxi, scene.root);
 
-    // if (collisions.length > 0) {
-    //     newY = currentY;
-    //     taxiPhysics.velocity.y = 0;
-    //     taxiPhysics.onGround = true;
-    // }
+    let colY = check_taxi_collisions(scene.taxi, scene.root);
+
+    if (colY.length > 0) {
+        const taxiCenter = scene.taxi.world_bounding.center;
+        const taxiHalfY = scene.taxi.world_bounding.halfsize[1];
+        const taxiBottom = taxiCenter[1] - taxiHalfY;
+
+        for (let collision of colY) {
+            const objTop = collision.max[1];
+
+            if (taxiPhysics.velocity.y <= 0) {
+                if (taxiBottom >= objTop - 0.4 && taxiBottom <= objTop + 0.4) {
+                    taxiPhysics.onGround = true;
+                    landedPlatform = collision.node || null;
+
+                    if (collision.node && collision.node.isRefuelStation) {
+                        gameState.isRefueling = true;
+                    }
+
+                    const desiredBottom = objTop;
+                    const correction = (desiredBottom + taxiHalfY) - taxiCenter[1];
+                    newY += correction;
+
+                    taxiPhysics.velocity.y = 0;
+                    break;
+                }
+            } else {
+                // moving up
+                newY = currentY;
+                taxiPhysics.velocity.y = 0;
+                break;
+            }
+        }
+
+        applyTaxiTransform(currentX, newY, currentZ);
+        stack = [];
+        walk_update(scene.root, stack, mat4Identity());
+    }
+
+    // Detect landing 
+    if (taxiPhysics.onGround && !wasOnGround && impactVelocity < -0.5) {
+        handle_landing(Math.abs(impactVelocity), landedPlatform);
+    }
 
     // Try moving in X direction
     let newX = currentX + taxiPhysics.velocity.x * dt;
