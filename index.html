@@ -6,21 +6,61 @@
   <title>Space Taxi: Another Dimension</title>
   <style>
   body {
-  background: #111;
-  color: #ccc;
-  font-family: monospace;
-  margin: 0;
-  height: 100vh;  
-  display: flex;
-  flex-direction: column;
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Courier New', monospace;
+    background:
+      radial-gradient(circle at top, #241539 0%, #05030b 55%, #000000 100%);
+    color: #cde8ff;
+    letter-spacing: 0.04em;
   }
 
   .headerText {
-    text-align: left;
-    padding: 20px;
-    align-self: flex-start;
+    padding: 16px 32px 10px;
+    border-bottom: 2px solid #2b203f;
+    background:
+      radial-gradient(circle at top, #341f53 0%, #130b22 40%, #05030b 100%);
+    box-shadow:
+      0 0 40px rgba(0, 255, 160, 0.2),
+      inset 0 -4px 10px rgba(0, 0, 0, 0.8);
   }
 
+  .headerTitle {
+    margin: 0;
+    font-size: 26px;
+    color: #fffbcc;
+    text-shadow:
+      0 0 6px #ffd700,
+      0 0 18px #ff9900,
+      2px 2px 0 #000;
+  }
+
+  .headerSubtitle {
+    margin: 6px 0 8px;
+    font-size: 13px;
+    color: #9fdcff;
+    text-shadow: 0 0 6px rgba(0, 180, 255, 0.7);
+  }
+
+  .headerMeta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 4px 0 0;
+  }
+
+  .metaChip {
+    padding: 2px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 255, 160, 0.4);
+    background: linear-gradient(90deg, rgba(8, 40, 30, 0.9), rgba(12, 60, 45, 0.9));
+    color: #b8ffe4;
+    font-size: 11px;
+  }
+
+  /* Main layout */
   .mainContent {
     flex: 1;
     display: flex;
@@ -31,57 +71,112 @@
   .canvasContainer {
     display: flex;
     flex-direction: row;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    gap: 30px;
+    gap: 32px;
+    padding: 16px 24px 32px;
   }
 
-  .sliderRow {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 10px;
-  }
-
-  .sliderRow label { 
-    width: 140px; 
-    text-align: 
-    right; 
-  }
-
-  .sliderRow input[type="range"] { 
-    accent-color: rgb(25, 103, 248); 
-    width: 200px; 
-  } 
-  
-  .sliderRow span { 
-    width: 50px; 
-    text-align: left; 
-  }
-
-  .buttonContainer {
+  .infoColumn {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: center; 
-    width: 100%;
-    margin-top: 20px;
-    gap: 10px; 
+    align-items: stretch;
+    gap: 14px;
+    min-width: 260px;
+    max-width: 320px;
+    font-size: 13px;
+    margin-left: 150px;
   }
 
-  .actionButton {
-    padding: 8px 16px;
-    font-family: monospace;
-    background-color: #333;
-    color: #ccc;
-    border: 1px solid #555;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s;
+  .infoPanel {
+    padding: 14px 16px 16px;
+    border-radius: 12px;
+    border: 1px solid #2f3f5e;
+    background:
+      linear-gradient(145deg, rgba(7, 12, 24, 0.96), rgba(3, 7, 16, 0.96));
+    box-shadow:
+      0 0 24px rgba(0, 255, 160, 0.16),
+      0 0 40px rgba(0, 80, 200, 0.2);
   }
 
-  .actionButton:hover {
-    background-color: #555;
+  .infoTitle {
+    font-size: 14px;
+    color: #fffbcc;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .infoSection {
+    margin-bottom: 10px;
+  }
+
+  .infoSectionTitle {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: #9ad4ff;
+    margin-bottom: 6px;
+    letter-spacing: 0.12em;
+  }
+
+  .keyRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .keyChip {
+    min-width: 54px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(180, 225, 255, 0.5);
+    background: radial-gradient(circle at top, #233a5a 0%, #07101f 60%);
+    color: #e2f4ff;
+    font-size: 11px;
+    text-align: center;
+  }
+
+  .keyDesc {
+    flex: 1;
+    color: #c0d4ff;
+    font-size: 12px;
+  }
+
+  /* How-to-play list */
+  .infoList {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+  }
+
+  .infoList li {
+    margin-bottom: 4px;
+    color: #c0d4ff;
+    font-size: 12px;
+  }
+
+  .infoHighlight {
+    color: #7dffb8;
+    font-weight: bold;
+  }
+
+  .infoSubtle {
+    color: #9aa4c2;
+    font-size: 11px;
+  }
+
+  .crtHint {
+    font-size: 11px;
+    color: #8ea2c8;
+    text-align: center;
+  }
+
+  .crtHint .keyChip {
+    display: inline-block;
+    min-width: auto;
+    padding: 1px 6px;
+    font-size: 10px;
   }
 
   #gameUI {
@@ -547,16 +642,9 @@
 </head>
 
 <body>
-  
-  <div class="headerText">
-    <p>
-      <h2>Computer Graphics Template</h2>
-      Use mouse to change view direction.<br>
-      Use WASD keys to move the camera up/down/left/right, scroll mouse wheel (or move two fingers up/down on touchpad) to zoom forwards/backwards.<br>
-      Toggle the settings on the right to change bump intensity. Temperature Lights option adds color to lighting.</p>
-    <p>
-      
-    </p>
+
+   <div class="headerText">
+    <h1 class="headerTitle">SPACE TAXI: ANOTHER DIMENSION</h1>
   </div>
 
   <div class="mainContent">
@@ -614,29 +702,87 @@
         <div id="levelSubtext" class="level-subtext hidden">+1 LIFE</div>
       </div>
 
-      <div class="sliderColumn">
-        <!-- <div class="sliderRow">
-          <label for="spinrateSlider">Rotate</label>
-          <input type="range" id="spinrateSlider" min="-10" max="10" step="0.1" value="0.1">
-          <span id="spinrateValue">0.10</span>
-        </div> -->
+            <div class="infoColumn">
+        <div class="infoPanel">
+          <div class="infoTitle">How to Play?</div>
 
-        <!-- <div class="sliderRow">
-          <label for="bumpStrengthSlider">Bump Strength</label>
-          <input type="range" id="bumpStrengthSlider" min="0" max="1000" step="0.1" value="1.0">
-          <span id="bumpStrengthValue">1.00</span>
-        </div> -->
+          <div class="infoSection">
+            <div class="infoSectionTitle">Controls</div>
 
-        <!-- <div class="sliderRow">
-          <label for="lightIntensitySlider">Ambient Light</label>
-          <input type="range" id="lightIntensitySlider" min="0" max="1.0" step="0.01" value="1.0">
-          <span id="lightIntensityValue">1.00</span>
-        </div> -->
+            <div class="keyRow">
+              <span class="keyChip">W / S</span>
+              <span class="keyDesc">Thrust forward / backwards</span>
+            </div>
 
-        <div class="buttonContainer">
-          <!-- <button class="actionButton" id="AttOnButton">Toggle Attenuation</button> -->
-          <!-- <button class="actionButton" id="AnimationButton">Toggle Animation</button> -->
-          <button class="actionButton" id="TLButton">Toggle Temperature Lights</button>
+            <div class="keyRow">
+              <span class="keyChip">A / D</span>
+              <span class="keyDesc">Rotate left / right</span>
+            </div>
+
+            <div class="keyRow">
+              <span class="keyChip">SPACE / SHIFT</span>
+              <span class="keyDesc">Vertical thrust (lift off!)</span>
+            </div>
+
+            <div class="keyRow">
+              <span class="keyChip">R</span>
+              <span class="keyDesc">Lose one life &amp; reset to spawn</span>
+            </div>
+
+            <!-- <div class="keyRow">
+              <span class="keyChip">N</span>
+              <span class="keyDesc">Force new level</span>
+            </div> -->
+
+            <div class="keyRow">
+              <span class="keyChip">C</span>
+              <span class="keyDesc">Toggle CRT/retro look</span>
+            </div>
+
+            <!-- <div class="keyRow">
+              <span class="keyChip">T</span>
+              <span class="keyDesc">Cycle weather </span>
+            </div> -->
+
+            <div class="keyRow">
+              <span class="keyChip">Enter</span>
+              <span class="keyDesc">Restart after <span class="infoHighlight">GAME OVER</span></span>
+            </div>
+          </div>
+
+          <div class="infoSection">
+            <div class="infoSectionTitle">The OBJECTIVE</div>
+            <ul class="infoList">
+              <li>
+                Follow the <span class="infoHighlight">green arrow</span> to a pickup platform and
+                land softly to pick up a passenger.
+              </li>
+              <li>
+                The arrow switches to <span class="infoHighlight">yellow</span> and points to the
+                dropoff platform, land there to deliver your passenger.
+              </li>
+              <li>
+                Your <span class="infoHighlight">fare</span> counts down over time, get to your destination quick for
+                a higher payout!
+              </li>
+              <li>
+                Land on <span class="infoHighlight">blue pads</span> to refuel.
+              </li>
+              <li>
+                Crashing costs a life and resets you to spawn.
+              </li>
+              <li class="infoSubtle">
+                Every few deliveries, you advance to a new level. Good pilots can earn extra lives.
+              </li>
+            </ul>
+          </div>
+
+          <div class="buttonContainer">
+            <div class="crtHint">
+              Press <span class="keyChip">C</span> to turn the
+              full CRT/retro mode on or off.
+            </div>
+          </div>
         </div>
       </div>
     </div>
