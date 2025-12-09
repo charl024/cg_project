@@ -218,7 +218,7 @@ const camera = {
     lookAhead: 12,     // How far ahead of taxi to look
     // Zoom control
     zoomLevel: 1.0,
-    targetZoom: 1.0,
+    targetZoom: 2.0,
 };
 
 function register_input() {
