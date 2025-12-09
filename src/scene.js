@@ -383,7 +383,7 @@ function create_scene(gl, program, uniforms) {
         return taxiRoot;
     }
 
-    const MAX_LEVELS = 3;
+    const MAX_LEVELS = 4;
     const BASE_WIDTH = 50;
     const BASE_HEIGHT = 20;
     const BASE_LENGTH = 50;
@@ -398,19 +398,15 @@ function create_scene(gl, program, uniforms) {
         // Pick a random level, favoring any level that isn't the current one
         let lvl;
         if (currentLevelType === 0) {
-            // First level - fully random
             lvl = Math.ceil(Math.random() * MAX_LEVELS);
         } else {
-            // Favor different levels - 80% chance to pick a different level
             if (Math.random() < 0.8) {
-                // Pick from levels that aren't the current one
                 let options = [];
                 for (let i = 1; i <= MAX_LEVELS; i++) {
                     if (i !== currentLevelType) options.push(i);
                 }
                 lvl = options[Math.floor(Math.random() * options.length)];
             } else {
-                // 20% chance to repeat the same level
                 lvl = Math.ceil(Math.random() * MAX_LEVELS);
             }
         }
@@ -424,8 +420,10 @@ function create_scene(gl, program, uniforms) {
                 return generate_brick_tower_level();
             case 3:
                 return generate_lava_sea_level();
+            case 4:
+                return generate_spiral_staircase_level();
             default:
-                return generate_lava_sea_level();
+                return generate_brick_tower_level();
         }
     }
 
@@ -703,6 +701,99 @@ function create_scene(gl, program, uniforms) {
         }
 
         // Create goal arrow
+        let goal_arrow = create_goal_arrow();
+        if (goal_arrow) add_children(base, goal_arrow);
+
+        return base;
+    }
+
+    function generate_spiral_staircase_level() {
+
+        const base = create_level_root();
+
+        const tower_height = 120.0;
+        const tower_radius = 6.0;
+        const platform_radius = 22.0;
+        const num_platforms = 15;
+        const vertical_step = tower_height / num_platforms;
+
+        const spawnPlatformY = 3.0;
+        const spawnPlatform = create_model_node(
+            {x: 0, y: spawnPlatformY, z: -18},
+            {x: 0, y: 0, z: 0},
+            {x: 6, y: 1, z: 6},
+            null,
+            shapes.cube,
+            uniforms,
+            metal_gray_material,
+            null
+        );
+        spawnPlatform.isPlatform = true;
+        spawnPlatform.platformLocation = {x: 0, y: spawnPlatformY + 0.5, z: -18, h: 1};
+        add_children(base, spawnPlatform);
+
+        state.level.spawn_position = {
+            x: 0,
+            y: spawnPlatformY + 1.5,
+            z: -18
+        };
+
+        const refuelY = tower_height * 0.45;
+        const refuelPlatform = create_model_node(
+            {x: 0, y: refuelY, z: platform_radius},
+            {x: 0, y: 0, z: 0},
+            {x: 6, y: 1, z: 6},
+            null,
+            shapes.cube,
+            uniforms,
+            metal_blue_material,
+            null
+        );
+        refuelPlatform.isRefuelStation = true;
+        refuelPlatform.isPlatform = true;
+        refuelPlatform.platformLocation = {x: 0, y: refuelY + 0.5, z: platform_radius, h: 1};
+        add_children(base, refuelPlatform);
+        state.level.platforms.push(refuelPlatform);
+        state.level.platform_locs.push(refuelPlatform.platformLocation);
+
+        // Generate spiral platforms ascending
+        for (let i = 0; i < num_platforms; i++) {
+
+            const angle = i * 0.5;
+            const px = Math.cos(angle) * platform_radius;
+            const pz = Math.sin(angle) * platform_radius;
+            const py = 3 + i * vertical_step;
+
+            const platform_loc = {
+                x: px,
+                y: py,
+                z: pz,
+                h: 1
+            };
+
+            const p = create_model_node(
+                {x: px, y: py, z: pz},
+                {x: 0.0, y: angle + Math.PI / 2, z: 0.0},
+                {x: 5.0, y: 1.0, z: 3.0},      
+                null,
+                shapes.cube,
+                uniforms,
+                metal_red_material,
+                null
+            );
+
+            p.material.textureScale = [1.0, 1.0];
+            p.isPlatform = true;
+            p.platformLocation = platform_loc;
+
+            state.level.platforms.push(p);
+            state.level.platform_locs.push(platform_loc);
+            add_children(base, p);
+        }
+
+        // death boundary below the tower
+        state.level.deathY = -20;
+
         let goal_arrow = create_goal_arrow();
         if (goal_arrow) add_children(base, goal_arrow);
 
@@ -1180,7 +1271,7 @@ function create_scene(gl, program, uniforms) {
         const platforms = state.level.platforms;
 
         // Filter out refuel stations - they shouldn't be delivery spots
-        const validPlatforms = platforms.filter(p => !p.isRefuelStation);
+        const validPlatforms = platforms.filter(p => !p.isRefuelStation && p !== excludePlatform);
 
         if (validPlatforms.length < 2) {
             return validPlatforms[0] || null;
@@ -1221,7 +1312,7 @@ function create_scene(gl, program, uniforms) {
 
         // Pick a new random pickup platform (exclude refuel stations)
         const platforms = state.level.platforms;
-        const validPlatforms = platforms.filter(p => !p.isRefuelStation);
+        const validPlatforms = platforms.filter(p => !p.isRefuelStation && p !== state.level.currentDropoffPlatform);
         if (validPlatforms.length === 0) return;
 
         const idx = Math.floor(Math.random() * validPlatforms.length);

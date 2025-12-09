@@ -91,6 +91,23 @@ const lava_material = {
     textureScale: [1.0, 1.0]
 };
 
+const rock_gray_material = {
+    Ka: 0.25,
+    Kd: 0.75,
+    Ks: 0.25,
+    alpha: 12.0,
+    color: [0.55, 0.55, 0.58],
+    bumpOn: true
+};
+
+const rock_dark_material = {
+    Ka: 0.22,
+    Kd: 0.65,
+    Ks: 0.22,
+    alpha: 10.0,
+    color: [0.28, 0.28, 0.32],
+    bumpOn: true
+};
 
 const metal_red_material = {
     Kd: 0.2,
