@@ -320,9 +320,9 @@ const taxiPhysics = {
     moveAccel: 12.0,      // forward/backward acceleration
     gravity: 9.8,
     maxVelocityY: 12.0,
-    maxVelocityXZ: 15.0,  // max horizontal speed
+    maxVelocityXZ: 18.0,  // max horizontal speed
     onGround: false,
-    airDrag: 0.98,
+    airDrag: 0.99,
     groundDrag: 0.9,
 };
 
