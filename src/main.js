@@ -942,8 +942,17 @@ function update_taxi(dt) {
     }
 
     // landing
-    if (taxiPhysics.onGround && !wasOnGround && impactVelocity < -0.5) {
-        handle_landing(Math.abs(impactVelocity), landedPlatform);
+    if (taxiPhysics.onGround) {
+        if (!wasOnGround && impactVelocity < -0.5) {
+            handle_landing(Math.abs(impactVelocity), landedPlatform);
+        } else if (
+            landedPlatform &&
+            gameState.passenger.hasPassenger &&
+            landedPlatform.isDropoffPlatform &&
+            landedPlatform === gameState.passenger.dropoffPlatform
+        ) {
+            handle_landing(gameState.goodLandingVelocity, landedPlatform);
+        }
     }
 
     let newX = currentX + taxiPhysics.velocity.x * dt;
