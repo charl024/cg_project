@@ -1,4 +1,4 @@
-// Scene setup
+// scene setup
 
 function create_scene(gl, program, uniforms) {
     const textures = {
@@ -117,8 +117,6 @@ function create_scene(gl, program, uniforms) {
             stormFlicker: false
         },
         lights: {
-            // pos1: [30, 40, 30],
-            // pos2: [-30, 40, -30],
             dir1: norm([ -0.3, -1.0, -0.2 ]),
             dir2: norm([ 0.2, -1.0, 0.4 ]),
             color1: [0.7, 0.7, 0.65],
@@ -134,7 +132,7 @@ function create_scene(gl, program, uniforms) {
             goalArrow: null,
             currentPickupPlatform: null,
             currentDropoffPlatform: null,
-            deathY: -100,  // Y level below which taxi dies (for lava levels)
+            deathY: -100,  // y level below which taxi dies (for lava levels)
         }
     };
 
@@ -162,7 +160,7 @@ function create_scene(gl, program, uniforms) {
                 Kd: 0.7,
                 Ks: 0.4,
                 alpha: 20.0,
-                color: [1.0, 0.9, 0.0], // Yellow
+                color: [1.0, 0.9, 0.0],
                 bumpOn: false
             },
             null
@@ -181,7 +179,7 @@ function create_scene(gl, program, uniforms) {
                 Kd: 0.7,
                 Ks: 0.4,
                 alpha: 20.0,
-                color: [1.0, 0.9, 0.0], // Yellow
+                color: [1.0, 0.9, 0.0],
                 bumpOn: false
             },
             null
@@ -200,7 +198,7 @@ function create_scene(gl, program, uniforms) {
                 Kd: 0.3,
                 Ks: 0.9,
                 alpha: 100.0,
-                color: [0.2, 0.3, 0.4], // Dark blue-gray
+                color: [0.2, 0.3, 0.4],
                 bumpOn: false
             },
             null
@@ -219,14 +217,14 @@ function create_scene(gl, program, uniforms) {
                 Kd: 0.6,
                 Ks: 0.3,
                 alpha: 10.0,
-                color: [1.0, 0.5, 0.0], // Orange
+                color: [1.0, 0.5, 0.0],
                 bumpOn: false
             },
             null
         );
         add_children(taxiRoot, taxiSign);
 
-        // Front left wheel
+
         const frontLeftWheel = create_model_node(
             {x: 0.6, y: -0.4, z: 0.65},
             {x: 0.0, y: 0.0, z: Math.PI / 2},
@@ -239,14 +237,14 @@ function create_scene(gl, program, uniforms) {
                 Kd: 0.4,
                 Ks: 0.2,
                 alpha: 5.0,
-                color: [0.1, 0.1, 0.1], // Black
+                color: [0.1, 0.1, 0.1],
                 bumpOn: false
             },
             null
         );
         add_children(taxiRoot, frontLeftWheel);
 
-        // Front right wheel
+
         const frontRightWheel = create_model_node(
             {x: 0.6, y: -0.4, z: -0.65},
             {x: 0.0, y: 0.0, z: Math.PI / 2},
@@ -259,14 +257,14 @@ function create_scene(gl, program, uniforms) {
                 Kd: 0.4,
                 Ks: 0.2,
                 alpha: 5.0,
-                color: [0.1, 0.1, 0.1], // Black
+                color: [0.1, 0.1, 0.1],
                 bumpOn: false
             },
             null
         );
         add_children(taxiRoot, frontRightWheel);
 
-        // Rear left wheel
+
         const rearLeftWheel = create_model_node(
             {x: -0.6, y: -0.4, z: 0.65},
             {x: 0.0, y: 0.0, z: Math.PI / 2},
@@ -279,14 +277,14 @@ function create_scene(gl, program, uniforms) {
                 Kd: 0.4,
                 Ks: 0.2,
                 alpha: 5.0,
-                color: [0.1, 0.1, 0.1], // Black
+                color: [0.1, 0.1, 0.1],
                 bumpOn: false
             },
             null
         );
         add_children(taxiRoot, rearLeftWheel);
 
-        // Rear right wheel
+
         const rearRightWheel = create_model_node(
             {x: -0.6, y: -0.4, z: -0.65},
             {x: 0.0, y: 0.0, z: Math.PI / 2},
@@ -299,7 +297,7 @@ function create_scene(gl, program, uniforms) {
                 Kd: 0.4,
                 Ks: 0.2,
                 alpha: 5.0,
-                color: [0.1, 0.1, 0.1], // Black
+                color: [0.1, 0.1, 0.1],
                 bumpOn: false
             },
             null
@@ -318,7 +316,7 @@ function create_scene(gl, program, uniforms) {
                 Kd: 0.6,
                 Ks: 0.3,
                 alpha: 10.0,
-                color: [1.0, 0.4, 0.0], // Orange
+                color: [1.0, 0.4, 0.0],
                 bumpOn: false
             },
             null
@@ -336,7 +334,7 @@ function create_scene(gl, program, uniforms) {
                 Kd: 0.6,
                 Ks: 0.3,
                 alpha: 10.0,
-                color: [1.0, 0.4, 0.0], // Orange
+                color: [1.0, 0.4, 0.0],
                 bumpOn: false
             },
             null
@@ -391,11 +389,11 @@ function create_scene(gl, program, uniforms) {
     const MAX_SPAWN_HEIGHT = 15;
     const arrow_offset_y = 10.0;
 
-    // Track current level to avoid repeating
+    // track current level to avoid repeating
     let currentLevelType = 0;
 
     function generate_level() {
-        // Pick a random level, favoring any level that isn't the current one
+
         let lvl;
         if (currentLevelType === 0) {
             lvl = Math.ceil(Math.random() * MAX_LEVELS);
@@ -431,7 +429,7 @@ function create_scene(gl, program, uniforms) {
 
         const base = create_level_root();
 
-        // World generation parameters
+        // world generation parameters
         let max_hill_height = 8;
         let grid_width = 25;
         let grid_length = 25;
@@ -630,7 +628,7 @@ function create_scene(gl, program, uniforms) {
             z: spawnZ
         };
 
-        // Create refuel platform (thin style)
+
         const refuelX = 25;
         const refuelZ = 25;
         const refuelY = 8;
@@ -651,7 +649,7 @@ function create_scene(gl, program, uniforms) {
         state.level.platforms.push(refuelPlatform);
         add_children(base, refuelPlatform);
 
-        // Generate random floating platforms
+
         const spawnClearRadius = 15;
         const refuelClearRadius = 12;
 
@@ -700,7 +698,7 @@ function create_scene(gl, program, uniforms) {
             add_children(base, p);
         }
 
-        // Create goal arrow
+
         let goal_arrow = create_goal_arrow();
         if (goal_arrow) add_children(base, goal_arrow);
 
@@ -756,7 +754,7 @@ function create_scene(gl, program, uniforms) {
         state.level.platforms.push(refuelPlatform);
         state.level.platform_locs.push(refuelPlatform.platformLocation);
 
-        // Generate spiral platforms ascending
+        // generate spiral platforms ascending
         for (let i = 0; i < num_platforms; i++) {
 
             const angle = i * 0.5;
@@ -800,8 +798,6 @@ function create_scene(gl, program, uniforms) {
         return base;
     }
 
-    // All helper functions for level generation
-
     function create_level_root() {
         return create_model_node(
             {x: 0.0, y: 0.0, z: 0.0},
@@ -821,7 +817,7 @@ function create_scene(gl, program, uniforms) {
         return Math.round(n * max_hill_height);
     }
 
-    // Get the actual top surface Y of terrain at a world position
+    // get the actual top surface y of terrain at a world position
     function get_terrain_top_y(worldX, worldZ, grid_width, grid_length, cell_width, cell_length, freq, max_hill_height) {
         const gx = Math.max(0, Math.min(grid_width - 1, Math.floor((worldX + BASE_WIDTH) / cell_width)));
         const gz = Math.max(0, Math.min(grid_length - 1, Math.floor((worldZ + BASE_LENGTH) / cell_length)));
@@ -829,7 +825,7 @@ function create_scene(gl, program, uniforms) {
         return terrainHeight;
     }
 
-    // Analyze a cell to determine spawn suitability
+    // analyze a cell to determine spawn suitability
     function analyze_spawn_cell(worldX, worldZ, refuelX, refuelZ, grid_width, grid_length, cell_width, cell_length, freq, max_hill_height) {
         const terrainTopY = get_terrain_top_y(worldX, worldZ, grid_width, grid_length, cell_width, cell_length, freq, max_hill_height);
         const distToRefuel = Math.hypot(worldX - refuelX, worldZ - refuelZ);
@@ -943,7 +939,7 @@ function create_scene(gl, program, uniforms) {
         const MIN_REFUEL_DIST = 12;
 
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
-            // Pick a random grid cell in the spawn zone
+
             let gx = gxMin + Math.floor(Math.random() * (gxMax - gxMin + 1));
             let gz = gzMin + Math.floor(Math.random() * (gzMax - gzMin + 1));
             gx = Math.max(0, Math.min(grid_width - 1, gx));
@@ -1247,7 +1243,7 @@ function create_scene(gl, program, uniforms) {
         return arrow_tail;
     }
 
-    // Move the goal arrow to a specific platform
+
     function move_goal_arrow_to_platform(platform) {
         if (!state.level.goalArrow || !platform || !platform.platformLocation) {
             return;
@@ -1257,7 +1253,7 @@ function create_scene(gl, program, uniforms) {
         const platform_loc = platform.platformLocation;
         const platform_top = platform_loc.y + (platform_loc.h / 2);        
 
-        // Update arrow position
+
         const newX = platform_loc.x;
         const newY = platform_top + arrow_offset_y;
         const newZ = platform_loc.z;
@@ -1266,11 +1262,10 @@ function create_scene(gl, program, uniforms) {
         arrow.basePosition = { x: newX, y: newY, z: newZ };
     }
 
-    // Get a random platform different from the given one (excludes refuel stations)
     function get_random_dropoff_platform(excludePlatform) {
         const platforms = state.level.platforms;
 
-        // Filter out refuel stations - they shouldn't be delivery spots
+        // filter out refuel stations
         const validPlatforms = platforms.filter(p => !p.isRefuelStation && p !== excludePlatform);
 
         if (validPlatforms.length < 2) {
@@ -1285,7 +1280,7 @@ function create_scene(gl, program, uniforms) {
             attempts++;
         } while (dropoffPlatform === excludePlatform && attempts < 20);
 
-        // Mark platforms
+
         if (excludePlatform) {
             excludePlatform.isPickupPlatform = false;
         }
@@ -1295,22 +1290,17 @@ function create_scene(gl, program, uniforms) {
         return dropoffPlatform;
     }
 
-    // Set the goal arrow to point to a specific platform (for dropoff)
     function set_goal_arrow_target(platform) {
         move_goal_arrow_to_platform(platform);
-        // Change arrow material to yellow for dropoff target
         state.level.goalArrow.material = goal_arrow_yellow_material;
         state.level.goalArrow.children[0].material = goal_arrow_yellow_material;
     }
 
-    // Setup next passenger pickup location after delivery
     function setup_next_passenger() {
-        // Clear current dropoff marker
         if (state.level.currentDropoffPlatform) {
             state.level.currentDropoffPlatform.isDropoffPlatform = false;
         }
 
-        // Pick a new random pickup platform (exclude refuel stations)
         const platforms = state.level.platforms;
         const validPlatforms = platforms.filter(p => !p.isRefuelStation && p !== state.level.currentDropoffPlatform);
         if (validPlatforms.length === 0) return;
@@ -1318,7 +1308,6 @@ function create_scene(gl, program, uniforms) {
         const idx = Math.floor(Math.random() * validPlatforms.length);
         const newPickupPlatform = validPlatforms[idx];
 
-        // Mark as pickup and move arrow
         newPickupPlatform.isPickupPlatform = true;
         state.level.currentPickupPlatform = newPickupPlatform;
         state.level.currentDropoffPlatform = null;
@@ -1333,7 +1322,6 @@ function create_scene(gl, program, uniforms) {
 
         let base = generate_level();
 
-        // Build taxi at the dynamic spawn position and add to scene
         let taxi = build_taxi(state.level.spawn_position);
         add_children(base, taxi);
         state.taxi = taxi;
@@ -1345,17 +1333,14 @@ function create_scene(gl, program, uniforms) {
         const weather = state.weather.config;
 
         if (state.temperatureLights) {
-            // Temperature mode overrides weather
             state.lights.color1 = [1.0, 0.6, 0.4];
             state.lights.color2 = [0.4, 0.6, 1.0];
         } else {
-            // Use weather lighting
             state.lights.color1 = [...weather.light1];
             state.lights.color2 = [...weather.light2];
 
-            // Storm flicker effect
             if (state.weather.current === "storm" && Math.random() < 0.02) {
-                // Lightning flash
+                // lightning flash
                 state.lights.color1 = [1.0, 1.0, 1.2];
                 state.lights.color2 = [0.8, 0.8, 1.0];
             }
@@ -1400,7 +1385,7 @@ function create_scene(gl, program, uniforms) {
     }
 
     function regenerate_level() {
-        // Clear existing level state
+        // clear existing level state
         state.level.platform_locs = [];
         state.level.goal_locs = [];
         state.level.spawn_position = null;
@@ -1408,12 +1393,10 @@ function create_scene(gl, program, uniforms) {
         state.level.goalArrow = null;
         state.level.currentPickupPlatform = null;
         state.level.currentDropoffPlatform = null;
-        state.level.deathY = -100;  // Reset death zone (lava levels will set this)
+        state.level.deathY = -100;
 
-        // Set random weather for new level
         set_random_weather();
 
-        // Rebuild the entire scene
         let base = generate_level();
         let taxi = build_taxi(state.level.spawn_position);
         add_children(base, taxi);
