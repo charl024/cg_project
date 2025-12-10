@@ -161,18 +161,6 @@ function renderRetroEffect(time, outputToFramebuffer = false) {
     gl.enable(gl.DEPTH_TEST);
 }
 
-function setTextureFiltering(useNearest) {
-    const minFilter = useNearest ? gl.NEAREST : gl.LINEAR_MIPMAP_LINEAR;
-    const magFilter = useNearest ? gl.NEAREST : gl.LINEAR;
-
-    for (const tex of window.registeredTextures) {
-        gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, minFilter);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, magFilter);
-    }
-    gl.bindTexture(gl.TEXTURE_2D, null);
-}
-
 // initialize crt effect stuff
 setupFramebuffer();
 setupQuad();
@@ -727,8 +715,6 @@ function register_taxi_input() {
 
             document.getElementById("crtOverlay").classList.toggle("active", newState);
             document.getElementById("gameWrapper").classList.toggle("crt-active", newState);
-
-            setTextureFiltering(newState);
 
             console.log("Retro CRT mode:", newState ? "ON" : "OFF");
         }
