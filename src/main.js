@@ -579,9 +579,15 @@ function handle_landing(landingVelocity, landedPlatform) {
             pickup_passenger(landedPlatform);
         } else if (landedPlatform.isDropoffPlatform && gameState.passenger.hasPassenger) {
             // check if this is the correct dropoff location
-            if (landedPlatform === gameState.passenger.dropoffPlatform) {
-                // deliver passenger
-                deliver_passenger(quality);
+            const a = landedPlatform?.platformLocation;
+            const b = gameState.passenger.dropoffPlatform?.platformLocation;
+
+            if (a && b) {
+                const dx = Math.abs(a.x - b.x);
+                const dz = Math.abs(a.z - b.z);
+                if (dx < 0.01 && dz < 0.01) {
+                    deliver_passenger(quality);
+                }
             }
         }
     }
